@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Berk Gunes - Interactive Portfolio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Inter:wght@900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --matrix-green: #29a329;
+            --matrix-green-dark: #145214;
+            --bg-color: #0c0c14;
+            --neon-glow: 0 0 4px #fff, 0 0 10px var(--matrix-green), 0 0 20px var(--matrix-green);
+        }
+        body, html {
+            font-family: 'Roboto Mono', monospace;
+            background-color: var(--bg-color);
+            color: var(--matrix-green);
+            overflow: hidden;
+            height: 100%;
+            cursor: none;
+        }
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        .ui-layer {
+            position: fixed;
+            inset: 0;
+            z-index: 2;
+        }
+        .crt-scanlines::after {
+            content: " ";
+            display: block;
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 3;
+            background-size: 100% 4px, 3px 100%;
+            pointer-events: none;
+            animation: flicker 0.15s infinite;
+        }
+        @keyframes flicker {
+            0% { opacity: 0.2; }
+            20% { opacity: 0.8; }
+            40% { opacity: 0.3; }
+            60% { opacity: 1; }
+            80% { opacity: 0.4; }
+            100% { opacity: 0.9; }
+        }
+        
+        /* Custom Cursor */
+        #cursor-dot {
+            position: fixed;
+            width: 6px; height: 18px;
+            background: var(--matrix-green);
+            pointer-events: none;
+            z-index: 9999;
+            transform: translate(-50%, -50%);
+            animation: cursor-blink 1s infinite;
+        }
+        @media (hover: none) {
+            #cursor-dot { display: none; }
+        }
+        @keyframes cursor-blink { 50% { opacity: 0; } }
+
+        /* Neon & Glitch Effects */
+        #main-name {
+            text-shadow: var(--neon-glow);
+            font-family: 'Inter', sans-serif;
+            font-weight: 500;
+            color: #fff;
+        }
+        #main-name span {
+             position: relative;
+        }
+        #subtitle {
+             text-shadow: 0 0 5px var(--matrix-green);
+        }
+        .narrative-glow {
+            text-shadow: 0 0 4px #fff, 0 0 10px #00ffff, 0 0 20px #00ffff;
+        }
+        .cinematic-glow {
+            text-shadow: 0 0 4px #fff, 0 0 10px #ff00ff, 0 0 20px #ff00ff;
+        }
+        
+        .glitch-text::before, .glitch-text::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            overflow: hidden;
+        }
+        .glitch-text::before {
+            left: 2px;
+            text-shadow: -2px 0 #ff00ff;
+            clip: rect(44px, 450px, 56px, 0);
+        }
+        .glitch-text::after {
+            left: -2px;
+            text-shadow: -2px 0 #00ffff;
+            clip: rect(85px, 450px, 90px, 0);
+        }
+        
+        .glitch-active::before {
+            animation: glitch-anim-1 0.4s linear;
+        }
+        .glitch-active::after {
+             animation: glitch-anim-2 0.4s linear;
+        }
+        
+        #subtitle .glitch-text {
+            font-family: inherit;
+            font-weight: inherit;
+        }
+        
+        body.glitch-muted .glitch-text::before,
+        body.glitch-muted .glitch-text::after,
+        body.glitch-muted .flicker-active {
+            animation: none !important;
+            opacity: 1 !important;
+        }
+
+        @keyframes glitch-anim-1 { 0% { clip: rect(35px, 9999px, 98px, 0); } 10% { clip: rect(2px, 9999px, 85px, 0); } 20% { clip: rect(78px, 9999px, 90px, 0); } 30% { clip: rect(42px, 9999px, 100px, 0); } 40% { clip: rect(18px, 9999px, 40px, 0); } 50% { clip: rect(95px, 9999px, 35px, 0); } 60% { clip: rect(10px, 9999px, 5px, 0); } 70% { clip: rect(88px, 9999px, 45px, 0); } 80% { clip: rect(50px, 9999px, 15px, 0); } 90% { clip: rect(25px, 9999px, 70px, 0); } 100% { clip: rect(60px, 9999px, 80px, 0); } }
+        @keyframes glitch-anim-2 { 0% { clip: rect(5px, 9999px, 100px, 0); } 10% { clip: rect(80px, 9999px, 30px, 0); } 20% { clip: rect(20px, 9999px, 55px, 0); } 30% { clip: rect(90px, 9999px, 40px, 0); } 40% { clip: rect(33px, 9999px, 15px, 0); } 50% { clip: rect(70px, 9999px, 85px, 0); } 60% { clip: rect(45px, 9999px, 25px, 0); } 70% { clip: rect(10px, 9999px, 95px, 0); } 80% { clip: rect(65px, 9999px, 5px, 0); } 90% { clip: rect(55px, 9999px, 35px, 0); } 100% { clip: rect(15px, 9999px, 75px, 0); } }
+
+        /* Broken Bulb Effect */
+        @keyframes broken-bulb {
+            0%, 100% { opacity: 1; }
+            20% { opacity: 0.3; }
+            24% { opacity: 1; }
+            50% { opacity: 1; }
+            52% { opacity: 0.1; }
+            56% { opacity: 0.8; }
+        }
+        .flicker-active {
+            animation: broken-bulb 0.5s linear;
+        }
+
+        /* Desktop Icons */
+        #desktop-icons { 
+            position: absolute; 
+            top: 40px; 
+            left: 40px; 
+            transform: none;
+            display: flex; 
+            flex-direction: column; 
+            gap: 20px; 
+        }
+        .desktop-icon { display: flex; flex-direction: column; align-items: center; width: 80px; text-align: center; color: white; cursor: none; }
+        .desktop-icon:hover { background: var(--matrix-green-dark); }
+        .icon-art { width: 50px; height: 50px; font-size: 50px; line-height: 1; margin-bottom: 5px; color: white; }
+        .icon-label { font-size: 12px; background: var(--matrix-green); color: black; padding: 0 2px; }
+        
+        /* Draggable Window */
+        .window { position: absolute; width: 640px; max-width: 90%; height: 480px; max-height: 80%; border: 2px solid #ccc; background: #000; box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #dfdfdf, inset -2px -2px grey, inset 2px 2px #fff; display: none; flex-direction: column; }
+        .title-bar { background: linear-gradient(90deg,#000080,#1084d0); padding: 3px 5px; display: flex; justify-content: space-between; align-items: center; color: white; font-weight: 700; cursor: move; touch-action: none; }
+        .title-bar-buttons { display: flex; }
+        .win-button { width: 16px; height: 14px; background: #c0c0c0; border: 2px solid; border-color: #fff #808080 #808080 #fff; box-shadow: inset 1px 1px #dfdfdf; margin-left: 2px; display: flex; align-items: center; justify-content: center; cursor: none; }
+        .window-content { flex-grow: 1; padding: 10px; overflow-y: auto; border-top: 2px solid; border-color: #808080 #fff #fff #808080; color: var(--matrix-green); }
+
+        /* CMD Input */
+        #cmd-container { margin-top: 2rem; padding: 1rem; background-color: rgba(0,0,0,0.7); border: 1px solid var(--matrix-green-dark); max-width: 600px; margin-left: auto; margin-right: auto; }
+        .cmd-line::after { content: '█'; animation: cursor-blink 1s infinite; display: inline-block; margin-left: 2px; }
+        .cmd-button { background-color: transparent; border: 2px solid var(--matrix-green); color: var(--matrix-green); padding: 4px 8px; margin-top: 8px; cursor: none; }
+        .cmd-button:hover { background-color: var(--matrix-green-dark); }
+        
+        /* Snake Game & Scorecard */
+        .snake-score-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 20px; background: #080808; padding: 5px; border: 1px solid var(--matrix-green-dark); }
+        .snake-ability-score { display: flex; justify-content: space-between; }
+        .snake-ability-score.active { color: white; text-shadow: 0 0 5px white; }
+
+        /* --- Mobile-Friendly Snake Controls --- */
+        #d-pad { display: none; position: absolute; bottom: 10px; left: 10px; width: 120px; height: 120px; }
+        .d-pad-btn { position: absolute; width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); }
+        #d-pad-up { top: 0; left: 40px; }
+        #d-pad-down { bottom: 0; left: 40px; }
+        #d-pad-left { top: 40px; left: 0; }
+        #d-pad-right { top: 40px; right: 0; }
+        @media (hover: none) { #d-pad { display: block; } }
+
+        /* Mute Button */
+        #mute-btn { position: fixed; bottom: 20px; right: 20px; z-index: 1000; font-size: 24px; opacity: 0.5; transition: opacity 0.3s; }
+        #mute-btn:hover { opacity: 1; }
+
+        /* --- Mobile-Specific Styles --- */
+        @media (max-width: 768px) {
+            #desktop-icons {
+                top: auto;
+                bottom: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                flex-direction: row;
+                width: 100%;
+                justify-content: space-evenly;
+                gap: 5px;
+            }
+            .desktop-icon {
+                transform: scale(0.9);
+            }
+            .window {
+                width: 95%;
+                height: 85%;
+                top: 50% !important;
+                left: 50% !important;
+                transform: translate(-50%, -50%);
+            }
+        }
+    </style>
+</head>
+<body class="crt-scanlines">
+
+    <div id="cursor-dot"></div>
+    <canvas id="bg-canvas"></canvas>
+
+    <div class="ui-layer">
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center w-full px-4">
+             <h1 id="main-name" class="text-5xl md:text-6xl lg:text-8xl"><span data-text="BERK">B<span class="flicker-char">E</span>RK</span> <span data-text="GUNES">GUNE<span class="flicker-char">S</span></span></h1>
+             <p id="subtitle" class="text-lg md:text-xl text-white font-medium mt-4"><span id="glitch-word-game" data-text="GAME">GAME</span><span> & </span><span id="glitch-word-realization" data-text="REALIZATION">REALIZATION</span><span> DESIGNER</span></p>
+             
+             <div id="cmd-container" class="hidden">
+                <p id="cmd-prompt">> MESSAGE:</p>
+                <div id="cmd-output" class="cmd-line min-h-[24px]"></div>
+                <button id="cmd-send-btn" class="cmd-button hidden">> SEND</button>
+             </div>
+        </div>
+       
+        <div id="desktop-icons">
+             <div class="desktop-icon" data-window="about">
+                <div class="icon-art">🗒️</div>
+                <span class="icon-label">README.TXT</span>
+             </div>
+             <div class="desktop-icon" data-window="projects">
+                <div class="icon-art">📁</div>
+                <span class="icon-label">PROJECTS.DIR</span>
+             </div>
+             <div class="desktop-icon" data-window="skills">
+                <div class="icon-art">🛠️</div>
+                <span class="icon-label">SKILLS.LOG</span>
+             </div>
+             <div class="desktop-icon" data-window="snake">
+                <div class="icon-art">🕹️</div>
+                <span class="icon-label">SNAKE.EXE</span>
+             </div>
+             <div class="desktop-icon" data-window="contact">
+                <div class="icon-art">🌐</div>
+                <span class="icon-label">CONNECT.EXE</span>
+             </div>
+        </div>
+
+        <div id="window-container"></div>
+        <div id="mute-btn">🔊</div>
+    </div>
+    
+    <div id="hidden-content" class="hidden">
+        <div data-content="about">
+            <h2 class="text-xl font-bold mb-4">> Loading C:\ABOUT\README.TXT...</h2>
+            <p>With over seven years of industry experience, I've grown from a QC Tester to a Realization Designer, shaping AAA universes like *Avatar: Frontiers of Pandora* and a new unannounced project. My expertise is bridging narrative and gameplay through cinematic system design, performance capture direction, and friendly AI implementation. I excel at leading cross-disciplinary teams to develop innovative tools that bring compelling stories to life.</p>
+        </div>
+        <div data-content="projects">
+             <h2 class="text-xl font-bold mb-4">> Querying C:\PROJECTS.DIR...</h2>
+             <div class="space-y-3">
+                <p>> Unannounced Project - Realization Designer</p>
+                <p>> Avatar: Frontiers of Pandora - Sky Breaker - Game Designer</p>
+                <p>> Avatar: Frontiers of Pandora - Secrets of the Spires - Game Designer</p>
+                <p>> Avatar: Frontiers of Pandora - Game/Narrative Designer</p>
+             </div>
+        </div>
+        <div data-content="skills">
+            <h2 class="text-xl font-bold mb-4">> Executing C:\SYS\SKILLS.LOG...</h2>
+            <div class="space-y-3">
+                <p>> Cinematic & Narrative Design [▉▉▉▉▉▉▉▉▉▉]</p>
+                <p>> Gameplay Systems & AI       [▉▉▉▉▉▉▉▉▉ ]</p>
+                <p>> Mocap & VO Direction      [▉▉▉▉▉▉▉▉  ]</p>
+                <p>> Feature Ownership & Leadership[▉▉▉▉▉▉▉▉▉ ]</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const cursorDot = document.getElementById('cursor-dot');
+            const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+            if (!isTouchDevice) {
+                window.addEventListener('mousemove', e => {
+                    cursorDot.style.left = `${e.clientX}px`;
+                    cursorDot.style.top = `${e.clientY}px`;
+                });
+            }
+
+
+            let activeWindow = null;
+            let isMuted = false;
+
+            // --- Title Effects ---
+            const mainName = document.getElementById('main-name');
+            const mainNameSpans = mainName.querySelectorAll('span[data-text]');
+            const gameWordEl = document.getElementById('glitch-word-game');
+            const realizationWordEl = document.getElementById('glitch-word-realization');
+            const flickerChars = document.querySelectorAll('.flicker-char');
+            
+            const originalGame = "GAME";
+            const hoverGame = "NARRATIVE";
+            const originalRealization = "REALIZATION";
+            const hoverRealization = "CINEMATIC";
+
+            let gameGlitchTimeout, realizationGlitchTimeout, nameGlitchTimeout, flickerTimeout;
+            let isGameGlitched = false;
+            let isRealizationGlitched = false;
+
+            function scheduleNameGlitch() {
+                clearTimeout(nameGlitchTimeout);
+                nameGlitchTimeout = setTimeout(() => {
+                    if (activeWindow || isMuted) {
+                        scheduleNameGlitch(); return;
+                    }
+                    mainNameSpans.forEach(span => span.classList.add('glitch-text', 'glitch-active'));
+                    setTimeout(() => {
+                        mainNameSpans.forEach(span => span.classList.remove('glitch-text', 'glitch-active'));
+                        scheduleNameGlitch();
+                    }, 400);
+                }, 20000 + Math.random() * 20000);
+            }
+            scheduleNameGlitch();
+            
+            function scheduleFlicker() {
+                clearTimeout(flickerTimeout);
+                flickerTimeout = setTimeout(() => {
+                    if (activeWindow || isMuted) {
+                        scheduleFlicker(); return;
+                    }
+                    const targetChar = flickerChars[Math.floor(Math.random() * flickerChars.length)];
+                    targetChar.classList.add('flicker-active');
+                    setTimeout(() => {
+                        targetChar.classList.remove('flicker-active');
+                        scheduleFlicker();
+                    }, 500);
+                }, 5000 + Math.random() * 10000);
+            }
+            scheduleFlicker();
+
+            function scheduleGameGlitch() {
+                clearTimeout(gameGlitchTimeout);
+                gameGlitchTimeout = setTimeout(() => {
+                    if (activeWindow || isMuted) { scheduleGameGlitch(); return; }
+                    isGameGlitched = true;
+                    gameWordEl.classList.add('glitch-text', 'glitch-active', 'narrative-glow');
+                    gameWordEl.textContent = hoverGame;
+                    gameWordEl.setAttribute('data-text', hoverGame);
+                    gameGlitchTimeout = setTimeout(() => {
+                        isGameGlitched = false;
+                        gameWordEl.classList.remove('glitch-text', 'glitch-active', 'narrative-glow');
+                        gameWordEl.textContent = originalGame;
+                        scheduleGameGlitch();
+                    }, 1000 + Math.random() * 1500);
+                }, 30000 + Math.random() * 20000);
+            }
+
+            function scheduleRealizationGlitch() {
+                clearTimeout(realizationGlitchTimeout);
+                realizationGlitchTimeout = setTimeout(() => {
+                    if (activeWindow || isMuted) { scheduleRealizationGlitch(); return; }
+                    isRealizationGlitched = true;
+                    realizationWordEl.classList.add('glitch-text', 'glitch-active', 'cinematic-glow');
+                    realizationWordEl.textContent = hoverRealization;
+                    realizationWordEl.setAttribute('data-text', hoverRealization);
+                    realizationGlitchTimeout = setTimeout(() => {
+                        isRealizationGlitched = false;
+                        realizationWordEl.classList.remove('glitch-text', 'glitch-active', 'cinematic-glow');
+                        realizationWordEl.textContent = originalRealization;
+                        scheduleRealizationGlitch();
+                    }, 1000 + Math.random() * 1500);
+                }, 35000 + Math.random() * 25000);
+            }
+            scheduleGameGlitch();
+            scheduleRealizationGlitch();
+
+            mainName.addEventListener('mouseenter', () => {
+                 if (isMuted) return;
+                if (isGameGlitched) {
+                    clearTimeout(gameGlitchTimeout);
+                    isGameGlitched = false;
+                    gameWordEl.classList.remove('glitch-text', 'glitch-active', 'narrative-glow');
+                    gameWordEl.textContent = originalGame;
+                    scheduleGameGlitch();
+                }
+                if (isRealizationGlitched) {
+                    clearTimeout(realizationGlitchTimeout);
+                    isRealizationGlitched = false;
+                    realizationWordEl.classList.remove('glitch-text', 'glitch-active', 'cinematic-glow');
+                    realizationWordEl.textContent = originalRealization;
+                    scheduleRealizationGlitch();
+                }
+            });
+            
+            const muteBtn = document.getElementById('mute-btn');
+            muteBtn.addEventListener('click', () => {
+                isMuted = !isMuted;
+                document.body.classList.toggle('glitch-muted', isMuted);
+                muteBtn.textContent = isMuted ? '🔇' : '🔊';
+                if(isMuted) {
+                    clearTimeout(gameGlitchTimeout); clearTimeout(realizationGlitchTimeout); clearTimeout(nameGlitchTimeout); clearTimeout(flickerTimeout);
+                    mainNameSpans.forEach(span => span.classList.remove('glitch-text', 'glitch-active'));
+                    flickerChars.forEach(char => char.classList.remove('flicker-active'));
+                    isGameGlitched = false; isRealizationGlitched = false;
+                    gameWordEl.classList.remove('glitch-text', 'glitch-active', 'narrative-glow'); gameWordEl.textContent = originalGame;
+                    realizationWordEl.classList.remove('glitch-text', 'glitch-active', 'cinematic-glow'); realizationWordEl.textContent = originalRealization;
+                } else {
+                    scheduleGameGlitch(); scheduleRealizationGlitch(); scheduleNameGlitch(); scheduleFlicker();
+                }
+            });
+
+            let scene, camera, renderer, particles, hoverParticles = [];
+            let comets = [];
+            function initBg() {
+                scene = new THREE.Scene();
+                camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 1000);
+                camera.position.z = 5;
+                const pMaterial = new THREE.PointsMaterial({ color: 0x39ff14, size: 0.02, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.8 });
+                const pGeometry = new THREE.BufferGeometry();
+                const vertices = [];
+                for (let i = 0; i < 20000; i++) {
+                    vertices.push((Math.random() - 0.5) * 20, (Math.random() - 0.5) * 20, (Math.random() - 0.5) * 20);
+                }
+                pGeometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+                particles = new THREE.Points(pGeometry, pMaterial);
+                scene.add(particles);
+                const hoverMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.025, blending: THREE.AdditiveBlending, transparent: true });
+                for (let i = 0; i < 50; i++) {
+                    const geometry = new THREE.BufferGeometry();
+                    geometry.setAttribute('position', new THREE.Float32BufferAttribute([0,0,0], 3));
+                    const point = new THREE.Points(geometry, hoverMaterial);
+                    point.orbitAngle = Math.random() * Math.PI * 2;
+                    point.orbitRadius = new THREE.Vector2(1.5 + Math.random() * 1.5, 0.5 + Math.random() * 0.5);
+                    point.orbitSpeed = 0.002 + Math.random() * 0.005;
+                    point.originalPosition = new THREE.Vector3();
+                    point.velocity = new THREE.Vector3();
+                    hoverParticles.push(point);
+                    scene.add(point);
+                }
+                renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('bg-canvas'), alpha: true });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                window.addEventListener('resize', () => {
+                    camera.aspect = window.innerWidth / window.innerHeight;
+                    camera.updateProjectionMatrix();
+                    renderer.setSize(window.innerWidth, window.innerHeight);
+                });
+            }
+            let mouseX = 0, mouseY = 0;
+            let mouseVector = new THREE.Vector3();
+            if (isTouchDevice) {
+                window.addEventListener('deviceorientation', (e) => {
+                    mouseX = (e.gamma || 0) * 20; // Left-to-right tilt
+                    mouseY = (e.beta || 0 - 45) * 20; // Front-to-back tilt, offset to center
+                });
+            } else {
+                document.addEventListener('mousemove', e => {
+                    mouseX = (e.clientX - window.innerWidth / 2);
+                    mouseY = (e.clientY - window.innerHeight / 2);
+                    mouseVector.set( (e.clientX / window.innerWidth) * 2 - 1, - (e.clientY / window.innerHeight) * 2 + 1, 0.5 );
+                    mouseVector.unproject(camera);
+                    let dir = mouseVector.sub(camera.position).normalize();
+                    let distance = -camera.position.z / dir.z;
+                    let pos = camera.position.clone().add(dir.multiplyScalar(distance));
+                    mouseVector.copy(pos);
+                });
+            }
+            function animateBg() {
+                requestAnimationFrame(animateBg);
+                particles.rotation.y += 0.0001;
+                if (!activeWindow) {
+                    particles.rotation.x += (mouseY/1000 * 0.1 - particles.rotation.x) * 0.02;
+                    particles.rotation.y += (-mouseX/1000 * 0.1 - particles.rotation.y) * 0.02;
+                }
+                hoverParticles.forEach(p => {
+                    p.orbitAngle += p.orbitSpeed;
+                    p.originalPosition.x = Math.cos(p.orbitAngle) * p.orbitRadius.x;
+                    p.originalPosition.y = Math.sin(p.orbitAngle) * p.orbitRadius.y;
+                    p.originalPosition.z = Math.sin(p.orbitAngle * 2) * 0.5;
+                    const distanceToMouse = p.position.distanceTo(mouseVector);
+                    const attractionForce = new THREE.Vector3().subVectors(mouseVector, p.position).multiplyScalar(0.001);
+                    const returnForce = new THREE.Vector3().subVectors(p.originalPosition, p.position).multiplyScalar(0.005);
+                    if (!isTouchDevice && distanceToMouse < 2) { p.velocity.add(attractionForce); }
+                    p.velocity.add(returnForce);
+                    p.velocity.multiplyScalar(0.9);
+                    p.position.add(p.velocity);
+                });
+                for (let i = comets.length - 1; i >= 0; i--) {
+                    const comet = comets[i];
+                    comet.position.add(comet.velocity);
+                    const worldHeight = (camera.position.z * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))) * 2;
+                    const worldWidth = worldHeight * (window.innerWidth / window.innerHeight);
+                    if (Math.abs(comet.position.x) > worldWidth / 2 + 2 || Math.abs(comet.position.y) > worldHeight / 2 + 2) {
+                        scene.remove(comet); comet.geometry.dispose(); comet.material.dispose(); comets.splice(i, 1);
+                    }
+                }
+                renderer.render(scene, camera);
+            }
+            initBg();
+            animateBg();
+
+            function launchComet() {
+                const cometGeometry = new THREE.CylinderGeometry(0.01, 0.01, 0.3, 8);
+                const cometMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+                const comet = new THREE.Mesh(cometGeometry, cometMaterial);
+                const worldHeight = (camera.position.z * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))) * 2;
+                const worldWidth = worldHeight * (window.innerWidth / window.innerHeight);
+                const edge = Math.floor(Math.random() * 4);
+                const startPos = new THREE.Vector3();
+                const endPos = new THREE.Vector3((Math.random() - 0.5) * 5, (Math.random() - 0.5) * 5, 0);
+                if (edge === 0) { startPos.x = Math.random() * worldWidth - worldWidth / 2; startPos.y = worldHeight / 2 + 1; } 
+                else if (edge === 1) { startPos.x = worldWidth / 2 + 1; startPos.y = Math.random() * worldHeight - worldHeight / 2; } 
+                else if (edge === 2) { startPos.x = Math.random() * worldWidth - worldWidth / 2; startPos.y = -worldHeight / 2 - 1; } 
+                else { startPos.x = -worldWidth / 2 - 1; startPos.y = Math.random() * worldHeight - worldHeight / 2; }
+                comet.position.copy(startPos);
+                const velocity = new THREE.Vector3().subVectors(endPos, startPos).normalize().multiplyScalar(0.03 + Math.random() * 0.05);
+                comet.velocity = velocity;
+                comet.lookAt(comet.position.clone().add(velocity));
+                comet.rotateX(Math.PI / 2);
+                comets.push(comet);
+                scene.add(comet);
+            }
+
+            function scheduleComet() {
+                setTimeout(() => { if (!activeWindow) { launchComet(); } scheduleComet(); }, 8000 + Math.random() * 10000);
+            }
+            scheduleComet();
+
+            const cmdContainer = document.getElementById('cmd-container');
+            const cmdPrompt = document.getElementById('cmd-prompt');
+            const cmdOutput = document.getElementById('cmd-output');
+            const cmdSendBtn = document.getElementById('cmd-send-btn');
+            let cmdState = 'idle';
+            let userMessage = '';
+            let userEmail = '';
+            
+            function resetCmd() {
+                cmdState = 'idle'; userMessage = ''; userEmail = '';
+                cmdContainer.classList.add('hidden'); cmdSendBtn.classList.add('hidden');
+                cmdOutput.textContent = ''; cmdPrompt.textContent = '> MESSAGE:';
+            }
+            
+            function handleCmdSend() {
+                if (cmdState === 'typing_message' && userMessage) {
+                    cmdState = 'typing_email'; cmdPrompt.textContent = '> YOUR EMAIL:'; cmdOutput.textContent = ''; userEmail = '';
+                } else if (cmdState === 'typing_email' && userEmail) {
+                    const mailtoLink = `mailto:berk.gunes.gamedev@email.com?subject=Contact from Portfolio&body=${encodeURIComponent(userMessage)}%0A%0AFrom: ${encodeURIComponent(userEmail)}`;
+                    window.location.href = mailtoLink;
+                    cmdState = 'sent'; cmdPrompt.textContent = '> MESSAGE SENT. DISCONNECTING...';
+                    cmdOutput.textContent = ''; cmdSendBtn.classList.add('hidden');
+                    setTimeout(resetCmd, 2000);
+                }
+            }
+            
+            cmdSendBtn.addEventListener('click', handleCmdSend);
+            
+            function closeActiveWindow() {
+                if (!activeWindow) return;
+                if (activeWindow.id === 'snake-window') {
+                    if (activeWindow.gameInstance) {
+                        activeWindow.gameInstance.stop();
+                    }
+                    if (!isTouchDevice) {
+                        document.getElementById('cursor-dot').style.display = 'block';
+                    }
+                }
+                activeWindow.remove();
+                activeWindow = null;
+            }
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    if (activeWindow) {
+                        closeActiveWindow();
+                    } else if (cmdState !== 'idle') {
+                        resetCmd();
+                    }
+                    return;
+                }
+                if (activeWindow) return;
+                if (cmdState === 'typing_message') {
+                    if (e.key === 'Enter') { handleCmdSend(); }
+                    else if (e.key === 'Backspace') { userMessage = userMessage.slice(0, -1); }
+                    else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) { userMessage += e.key; }
+                    cmdOutput.textContent = userMessage;
+                    cmdSendBtn.classList.toggle('hidden', !userMessage);
+                } else if (cmdState === 'typing_email') {
+                    if (e.key === 'Enter') { handleCmdSend(); }
+                    else if (e.key === 'Backspace') { userEmail = userEmail.slice(0, -1); }
+                    else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) { userEmail += e.key; }
+                    cmdOutput.textContent = userEmail;
+                } else if (cmdState === 'idle' && e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+                    cmdState = 'typing_message';
+                    cmdContainer.classList.remove('hidden');
+                    userMessage = e.key;
+                    cmdOutput.textContent = userMessage;
+                    cmdSendBtn.classList.remove('hidden');
+                }
+            });
+
+            const windowContainer = document.getElementById('window-container');
+            const icons = document.querySelectorAll('.desktop-icon');
+            icons.forEach(icon => {
+                icon.addEventListener('click', () => {
+                    const windowId = icon.dataset.window;
+                    if (windowId === 'contact') {
+                        if (activeWindow) closeActiveWindow();
+                        if (cmdState === 'idle') { cmdState = 'typing_message'; cmdContainer.classList.remove('hidden'); }
+                        return;
+                    }
+                    if (activeWindow) closeActiveWindow();
+                    if (windowId === 'snake') { createSnakeWindow(); } 
+                    else { createWindow(windowId); }
+                });
+            });
+
+            function createWindow(id) {
+                const sourceContent = document.querySelector(`#hidden-content [data-content="${id}"]`).innerHTML;
+                const windowEl = document.createElement('div');
+                windowEl.className = 'window';
+                let title = `C:\\${id.toUpperCase()}`;
+                windowEl.innerHTML = `<div class="title-bar"><span>${title}</span><div class="title-bar-buttons"><div class="win-button close-btn">&times;</div></div></div><div class="window-content">${sourceContent}</div>`;
+                windowContainer.appendChild(windowEl);
+                activeWindow = windowEl;
+                makeDraggable(windowEl);
+                windowEl.querySelector('.close-btn').addEventListener('click', closeActiveWindow);
+                windowEl.style.display = 'flex';
+            }
+            
+            function createSnakeWindow() {
+                const windowEl = document.createElement('div');
+                windowEl.className = 'window';
+                windowEl.id = 'snake-window';
+                if (!isTouchDevice) {
+                    windowEl.style.width = '520px';
+                    windowEl.style.height = '580px';
+                    windowEl.style.left = `calc(50vw - 260px)`;
+                    windowEl.style.top = `calc(50vh - 290px)`;
+                }
+                windowEl.innerHTML = `<div class="title-bar"><span>C:\\GAMES\\SNAKE.EXE</span><div class="title-bar-buttons"><div class="win-button close-btn">&times;</div></div></div><div class="window-content" style="padding: 10px; background: black; display: grid; grid-template-rows: auto 1fr; gap: 10px;"><div id="snake-scorecard" class="snake-score-grid"></div><div style="position: relative; min-height: 0;"><canvas id="snake-canvas" style="position: absolute; width: 100%; height: 100%;"></canvas><div id="game-over-text" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: white;"><h2 style="font-size: 2rem; color: red;">GAME OVER</h2></div><div id="d-pad"><div id="d-pad-up" class="d-pad-btn"></div><div id="d-pad-down" class="d-pad-btn"></div><div id="d-pad-left" class="d-pad-btn"></div><div id="d-pad-right" class="d-pad-btn"></div></div></div></div>`;
+                windowContainer.appendChild(windowEl);
+                activeWindow = windowEl;
+                makeDraggable(windowEl);
+                
+                if(!isTouchDevice) {
+                    document.getElementById('cursor-dot').style.display = 'none';
+                }
+
+                const canvas = document.getElementById('snake-canvas');
+                
+                requestAnimationFrame(() => {
+                    const parent = canvas.parentElement;
+                    canvas.width = parent.clientWidth;
+                    canvas.height = parent.clientHeight;
+                    const gameInstance = initSnakeGame(canvas);
+                    windowEl.gameInstance = gameInstance;
+                    windowEl.querySelector('.close-btn').addEventListener('click', closeActiveWindow);
+                });
+                windowEl.style.display = 'flex';
+            }
+
+            function initSnakeGame(canvas) {
+                const ctx = canvas.getContext('2d');
+                const scorecardEl = document.getElementById('snake-scorecard');
+                const gameOverEl = document.getElementById('game-over-text');
+                
+                let gridSize = 20;
+                let tileCountX = Math.floor(canvas.width / gridSize);
+                let tileCountY = Math.floor(canvas.height / gridSize);
+
+                const abilities = {
+                    CREATIVITY: { max: 8, current: 0, el: null },
+                    TECHNICAL:  { max: 6, current: 0, el: null },
+                    SYSTEMS:    { max: 9, current: 0, el: null },
+                    DESIGN:     { max: 7, current: 0, el: null },
+                };
+
+                scorecardEl.innerHTML = '';
+                for(const key in abilities) {
+                    const ability = abilities[key];
+                    const el = document.createElement('div');
+                    el.className = 'snake-ability-score';
+                    el.innerHTML = `<span>${key}:</span> <span>0/${ability.max}</span>`;
+                    scorecardEl.appendChild(el);
+                    ability.el = el.querySelectorAll('span')[1];
+                    ability.wrapperEl = el;
+                }
+                
+                let snake, apple, isPlaying, gameLoopTimeout, currentAbilityKey;
+                
+                function selectNextAbility() {
+                    const available = Object.keys(abilities).filter(key => abilities[key].current < abilities[key].max);
+                    document.querySelectorAll('.snake-ability-score').forEach(el => el.classList.remove('active'));
+                    if (available.length === 0) {
+                        isPlaying = false;
+                        gameOverEl.innerHTML = `<h2 style="font-size: 2rem; color: var(--matrix-green);">YOU WIN!</h2><button class="cmd-button restart-btn" style="margin-top: 1rem;">> PLAY AGAIN</button>`;
+                        gameOverEl.style.display = 'block';
+                        if (!isTouchDevice) { document.getElementById('cursor-dot').style.display = 'block'; }
+                        return false;
+                    }
+                    currentAbilityKey = available[Math.floor(Math.random() * available.length)];
+                    abilities[currentAbilityKey].wrapperEl.classList.add('active');
+                    return true;
+                }
+
+                function setupGame() {
+                    snake = { body: [{ x: 10, y: 10 }], dx: 0, dy: 0, nextDx: 0, nextDy: 0 };
+                    apple = { x: 15, y: 15 };
+                    isPlaying = true;
+                    gameOverEl.style.display = 'none';
+                    if (!isTouchDevice) { document.getElementById('cursor-dot').style.display = 'none'; }
+                    for(const key in abilities) { abilities[key].current = 0; abilities[key].el.textContent = `0/${abilities[key].max}`; }
+                    selectNextAbility();
+                    randomizeApple();
+                }
+
+                function randomizeApple() {
+                    apple.x = Math.floor(Math.random() * tileCountX);
+                    apple.y = Math.floor(Math.random() * tileCountY);
+                    for (const segment of snake.body) { 
+                        if (segment.x === apple.x && segment.y === apple.y) { randomizeApple(); return; } 
+                    }
+                }
+                
+                let gameInstanceHandle = { stop: () => {} };
+                function handleInput(direction) {
+                    if (!isPlaying) return;
+                    const goingUp = snake.dy === -1, goingDown = snake.dy === 1, goingLeft = snake.dx === -1, goingRight = snake.dx === 1;
+                    if (direction === 'up' && !goingDown) { snake.nextDx = 0; snake.nextDy = -1; }
+                    else if (direction === 'down' && !goingUp) { snake.nextDx = 0; snake.nextDy = 1; }
+                    else if (direction === 'left' && !goingRight) { snake.nextDx = -1; snake.nextDy = 0; }
+                    else if (direction === 'right' && !goingLeft) { snake.nextDx = 1; snake.nextDy = 0; }
+                }
+
+                function handleKeydown(e) {
+                    if (!isPlaying && e.key === 'Enter') { setupGame(); gameLoop(); return; }
+                    const key = e.key.toLowerCase();
+                    if (key === 'arrowup' || key === 'w') handleInput('up');
+                    else if (key === 'arrowdown' || key === 's') handleInput('down');
+                    else if (key === 'arrowleft' || key === 'a') handleInput('left');
+                    else if (key === 'arrowright' || key === 'd') handleInput('right');
+                }
+                
+                gameOverEl.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('restart-btn')) {
+                        if (!isPlaying) {
+                            setupGame();
+                            gameLoop();
+                        }
+                    }
+                });
+
+                document.getElementById('d-pad-up').addEventListener('touchstart', (e) => { e.preventDefault(); handleInput('up'); });
+                document.getElementById('d-pad-down').addEventListener('touchstart', (e) => { e.preventDefault(); handleInput('down'); });
+                document.getElementById('d-pad-left').addEventListener('touchstart', (e) => { e.preventDefault(); handleInput('left'); });
+                document.getElementById('d-pad-right').addEventListener('touchstart', (e) => { e.preventDefault(); handleInput('right'); });
+
+                function gameLoop() {
+                    if (!isPlaying) { if (gameOverEl.innerHTML.includes('GAME OVER')) { gameOverEl.style.display = 'block'; } return; }
+                    update(); draw();
+                    gameLoopTimeout = setTimeout(gameLoop, 1000 / 12);
+                }
+
+                function update() {
+                    snake.dx = snake.nextDx; snake.dy = snake.nextDy;
+                    if(snake.dx === 0 && snake.dy === 0 && snake.body.length === 1) return;
+                    const head = { x: snake.body[0].x + snake.dx, y: snake.body[0].y + snake.dy };
+                    if (head.x < 0 || head.x >= tileCountX || head.y < 0 || head.y >= tileCountY) { isPlaying = false; gameOverEl.innerHTML = `<h2 style="font-size: 2rem; color: red;">GAME OVER</h2><button class="cmd-button restart-btn" style="margin-top: 1rem;">> RESTART</button>`; if (!isTouchDevice) { document.getElementById('cursor-dot').style.display = 'block'; } return; }
+                    for (let i = 1; i < snake.body.length; i++) { if (head.x === snake.body[i].x && head.y === snake.body[i].y) { isPlaying = false; gameOverEl.innerHTML = `<h2 style="font-size: 2rem; color: red;">GAME OVER</h2><button class="cmd-button restart-btn" style="margin-top: 1rem;">> RESTART</button>`; if (!isTouchDevice) { document.getElementById('cursor-dot').style.display = 'block'; } return; } }
+                    snake.body.unshift(head);
+                    if (head.x === apple.x && head.y === apple.y) {
+                        if (currentAbilityKey) {
+                            const ability = abilities[currentAbilityKey];
+                            ability.current++;
+                            ability.el.textContent = `${ability.current}/${ability.max}`;
+                            if (ability.current >= ability.max) { selectNextAbility(); }
+                        }
+                        randomizeApple();
+                    } else { snake.body.pop(); }
+                }
+
+                function draw() {
+                    ctx.fillStyle = '#080808'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = 'lime';
+                    for (const segment of snake.body) { ctx.fillRect(segment.x * gridSize, segment.y * gridSize, gridSize - 1, gridSize - 1); }
+                    ctx.fillStyle = 'red';
+                    ctx.fillRect(apple.x * gridSize, apple.y * gridSize, gridSize - 1, gridSize - 1);
+                }
+
+                setupGame(); document.addEventListener('keydown', handleKeydown); gameLoop();
+                gameInstanceHandle.stop = () => { isPlaying = false; clearTimeout(gameLoopTimeout); document.removeEventListener('keydown', handleKeydown); };
+                return gameInstanceHandle;
+            }
+
+            function makeDraggable(el) {
+                const titleBar = el.querySelector('.title-bar');
+                let isDragging = false, offsetX, offsetY;
+                const startDrag = (e) => {
+                    isDragging = true;
+                    const event = e.touches ? e.touches[0] : e;
+                    offsetX = event.clientX - el.offsetLeft;
+                    offsetY = event.clientY - el.offsetTop;
+                    el.style.zIndex = (parseInt(el.style.zIndex) || 0) + 1;
+                };
+                const doDrag = (e) => {
+                    if (!isDragging) return;
+                    e.preventDefault();
+                    const event = e.touches ? e.touches[0] : e;
+                    el.style.left = `${event.clientX - offsetX}px`;
+                    el.style.top = `${event.clientY - offsetY}px`;
+                };
+                const stopDrag = () => { isDragging = false; };
+                titleBar.addEventListener('mousedown', startDrag);
+                document.addEventListener('mousemove', doDrag);
+                document.addEventListener('mouseup', stopDrag);
+                titleBar.addEventListener('touchstart', startDrag, {passive: false});
+                document.addEventListener('touchmove', doDrag, {passive: false});
+                document.addEventListener('touchend', stopDrag);
+            }
+        });
+    </script>
+</body>
+</html>
+
