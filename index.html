@@ -673,28 +673,50 @@
             const cmdOutput = document.getElementById('cmd-output');
             const cmdSendBtn = document.getElementById('cmd-send-btn');
             let cmdState = 'idle';
-            let userMessage = '';
-            let userEmail = '';
             
             function resetCmd() {
-                cmdState = 'idle'; userMessage = ''; userEmail = '';
-                cmdContainer.classList.add('hidden'); cmdSendBtn.classList.add('hidden');
-                cmdOutput.textContent = ''; cmdPrompt.textContent = '> MESSAGE:';
+                cmdState = 'idle';
+                cmdOutput.textContent = '';
+                cmdOutput.blur();
+                cmdContainer.classList.add('hidden');
+                cmdSendBtn.classList.add('hidden');
+                cmdPrompt.textContent = '> MESSAGE:';
             }
-            
+
             function handleCmdSend() {
-                if (cmdState === 'typing_message' && userMessage) {
-                    cmdState = 'typing_email'; cmdPrompt.textContent = '> YOUR EMAIL:'; cmdOutput.textContent = ''; userEmail = '';
-                } else if (cmdState === 'typing_email' && userEmail) {
-                    const mailtoLink = `mailto:berk.gunes.gamedev@email.com?subject=Contact from Portfolio&body=${encodeURIComponent(userMessage)}%0A%0AFrom: ${encodeURIComponent(userEmail)}`;
+                const message = cmdOutput.textContent.trim();
+                if (cmdState === 'typing_message' && message) {
+                    cmdState = 'typing_email';
+                    cmdPrompt.textContent = '> YOUR EMAIL:';
+                    cmdOutput.textContent = '';
+                } else if (cmdState === 'typing_email' && message) {
+                    const mailtoLink = `mailto:halhux@gmail.com?subject=Contact from Portfolio&body=${encodeURIComponent(message)}`;
                     window.location.href = mailtoLink;
-                    cmdState = 'sent'; cmdPrompt.textContent = '> MESSAGE SENT. DISCONNECTING...';
-                    cmdOutput.textContent = ''; cmdSendBtn.classList.add('hidden');
+                    cmdState = 'sent';
+                    cmdPrompt.textContent = '> MESSAGE SENT. DISCONNECTING...';
+                    cmdSendBtn.classList.add('hidden');
                     setTimeout(resetCmd, 2000);
                 }
             }
-            
+
+            // Event listener for the "SEND" button
             cmdSendBtn.addEventListener('click', handleCmdSend);
+
+            // Event listener for the input field to show/hide the send button
+            cmdOutput.addEventListener('input', () => {
+                cmdSendBtn.classList.toggle('hidden', !cmdOutput.textContent.trim());
+            });
+
+            // Event listener for the Enter key press
+            cmdOutput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleCmdSend();
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    resetCmd();
+                }
+            });
             
             function closeActiveWindow() {
                 if (!activeWindow) return;
@@ -720,23 +742,20 @@
                     return;
                 }
                 if (activeWindow) return;
-                if (cmdState === 'typing_message') {
-                    if (e.key === 'Enter') { handleCmdSend(); }
-                    else if (e.key === 'Backspace') { userMessage = userMessage.slice(0, -1); }
-                    else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) { userMessage += e.key; }
-                    cmdOutput.textContent = userMessage;
-                    cmdSendBtn.classList.toggle('hidden', !userMessage);
-                } else if (cmdState === 'typing_email') {
-                    if (e.key === 'Enter') { handleCmdSend(); }
-                    else if (e.key === 'Backspace') { userEmail = userEmail.slice(0, -1); }
-                    else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) { userEmail += e.key; }
-                    cmdOutput.textContent = userEmail;
-                } else if (cmdState === 'idle' && e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+                if (cmdState === 'idle' && e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
                     cmdState = 'typing_message';
                     cmdContainer.classList.remove('hidden');
-                    userMessage = e.key;
-                    cmdOutput.textContent = userMessage;
-                    cmdSendBtn.classList.remove('hidden');
+                    cmdOutput.focus();
+                    
+                    const textNode = cmdOutput.firstChild;
+                    if (textNode) {
+                        const range = document.createRange();
+                        range.setStart(textNode, textNode.length);
+                        range.collapse(true);
+                        const selection = window.getSelection();
+                        selection.removeAllRanges();
+                        selection.addRange(range);
+                    }
                 }
             });
 
@@ -751,6 +770,15 @@
                         cmdContainer.classList.remove('hidden');
                         setTimeout(() => {
                            cmdOutput.focus();
+                           const textNode = cmdOutput.firstChild;
+                           if (textNode) {
+                               const range = document.createRange();
+                               range.setStart(textNode, textNode.length);
+                               range.collapse(true);
+                               const selection = window.getSelection();
+                               selection.removeAllRanges();
+                               selection.addRange(range);
+                           }
                         }, 100);
                         return;
                     }
