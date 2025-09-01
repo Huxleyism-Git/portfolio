@@ -254,6 +254,28 @@
             display: block;
         }
 
+        #snake-start-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: white;
+            padding: 1rem;
+            background-color: rgba(0, 0, 0, 0.7);
+            border-radius: 10px;
+            text-shadow: 0 0 5px lime;
+            display: none;
+        }
+        #snake-start-message h2 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+        #snake-start-message p {
+            font-size: 1rem;
+            opacity: 0.8;
+        }
+
 
         /* --- Mobile-Specific Styles --- */
         @media (max-width: 768px) {
@@ -617,27 +639,9 @@
             animateBg();
 
             function launchComet() {
-                const cometGeometry = new THREE.CylinderGeometry(0.01, 0.01, 0.3, 8);
-                const cometMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
-                const comet = new THREE.Mesh(cometGeometry, cometMaterial);
-                const worldHeight = (camera.position.z * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))) * 2;
-                const worldWidth = worldHeight * (window.innerWidth / window.innerHeight);
-                const edge = Math.floor(Math.random() * 4);
-                const startPos = new THREE.Vector3();
-                const endPos = new THREE.Vector3((Math.random() - 0.5) * 5, (Math.random() - 0.5) * 5, 0);
-                if (edge === 0) { startPos.x = Math.random() * worldWidth - worldWidth / 2; startPos.y = worldHeight / 2 + 1; } 
-                else if (edge === 1) { startPos.x = worldWidth / 2 + 1; startPos.y = Math.random() * worldHeight - worldHeight / 2; } 
-                else if (edge === 2) { startPos.x = Math.random() * worldWidth - worldWidth / 2; startPos.y = -worldHeight / 2 - 1; } 
-                else { startPos.x = -worldWidth / 2 - 1; startPos.y = Math.random() * worldHeight - worldHeight / 2; }
-                comet.position.copy(startPos);
-                const velocity = new THREE.Vector3().subVectors(endPos, startPos).normalize().multiplyScalar(0.03 + Math.random() * 0.05);
-                comet.velocity = velocity;
-                comet.lookAt(comet.position.clone().add(velocity));
-                comet.rotateX(Math.PI / 2);
-                comets.push(comet);
-                scene.add(comet);
+                setTimeout(() => { if (!activeWindow) { launchComet(); } scheduleComet(); }, 8000 + Math.random() * 10000);
             }
-
+            
             function scheduleComet() {
                 setTimeout(() => { if (!activeWindow) { launchComet(); } scheduleComet(); }, 8000 + Math.random() * 10000);
             }
@@ -755,7 +759,7 @@
                     windowEl.style.left = `calc(50vw - 260px)`;
                     windowEl.style.top = `calc(50vh - 290px)`;
                 }
-                windowEl.innerHTML = `<div class="title-bar"><span>C:\\GAMES\\SNAKE.EXE</span><div class="title-bar-buttons"><div class="win-button close-btn">&times;</div></div></div><div class="window-content" style="padding: 10px; background: black; display: grid; grid-template-rows: auto 1fr; gap: 10px;"><div id="snake-scorecard" class="snake-score-grid"></div><div style="position: relative; min-height: 0;"><canvas id="snake-canvas" style="position: absolute; width: 100%; height: 100%;"></canvas><div id="game-over-text" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: white;"><h2 style="font-size: 2rem; color: red;">GAME OVER</h2></div></div></div>`;
+                windowEl.innerHTML = `<div class="title-bar"><span>C:\\GAMES\\SNAKE.EXE</span><div class="title-bar-buttons"><div class="win-button close-btn">&times;</div></div></div><div class="window-content" style="padding: 10px; background: black; display: grid; grid-template-rows: auto 1fr; gap: 10px;"><div id="snake-scorecard" class="snake-score-grid"></div><div style="position: relative; min-height: 0;"><canvas id="snake-canvas" style="position: absolute; width: 100%; height: 100%;"></canvas><div id="game-over-text" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: white;"><h2 style="font-size: 2rem; color: red;">GAME OVER</h2></div><div id="snake-start-message" class="hidden"><h2>SWIPE TO START</h2><p>(Use WASD/Arrow keys on desktop)</p></div></div></div>`;
                 windowContainer.appendChild(windowEl);
                 activeWindow = windowEl;
                 makeDraggable(windowEl);
@@ -781,6 +785,7 @@
                 const ctx = canvas.getContext('2d');
                 const scorecardEl = document.getElementById('snake-scorecard');
                 const gameOverEl = document.getElementById('game-over-text');
+                const instructionsEl = document.getElementById('snake-start-message');
                 
                 let gridSize = 20;
                 let tileCountX = Math.floor(canvas.width / gridSize);
@@ -805,6 +810,7 @@
                 }
                 
                 let snake, apple, isPlaying, gameLoopTimeout, currentAbilityKey;
+                let hasMoved = false;
                 
                 function selectNextAbility() {
                     const available = Object.keys(abilities).filter(key => abilities[key].current < abilities[key].max);
@@ -826,10 +832,14 @@
                     apple = { x: 15, y: 15 };
                     isPlaying = true;
                     gameOverEl.style.display = 'none';
+                    if (isTouchDevice) {
+                        instructionsEl.classList.remove('hidden');
+                    }
                     if (!isTouchDevice) { document.getElementById('cursor-dot').style.display = 'none'; }
                     for(const key in abilities) { abilities[key].current = 0; abilities[key].el.textContent = `0/${abilities[key].max}`; }
                     selectNextAbility();
                     randomizeApple();
+                    hasMoved = false;
                 }
 
                 function randomizeApple() {
@@ -843,6 +853,12 @@
                 let gameInstanceHandle = { stop: () => {} };
                 function handleInput(direction) {
                     if (!isPlaying) return;
+                    // Hide instructions on first move
+                    if (!hasMoved) {
+                        instructionsEl.classList.add('hidden');
+                        hasMoved = true;
+                    }
+
                     const goingUp = snake.dy === -1, goingDown = snake.dy === 1, goingLeft = snake.dx === -1, goingRight = snake.dx === 1;
                     if (direction === 'up' && !goingDown) { snake.nextDx = 0; snake.nextDy = -1; }
                     else if (direction === 'down' && !goingUp) { snake.nextDx = 0; snake.nextDy = 1; }
@@ -922,7 +938,13 @@
 
                 function update() {
                     snake.dx = snake.nextDx; snake.dy = snake.nextDy;
-                    if(snake.dx === 0 && snake.dy === 0 && snake.body.length === 1) return;
+                    if(snake.dx === 0 && snake.dy === 0 && snake.body.length === 1) {
+                         if (isTouchDevice) instructionsEl.classList.remove('hidden');
+                         return;
+                    } else {
+                         if (isTouchDevice) instructionsEl.classList.add('hidden');
+                    }
+
                     const head = { x: snake.body[0].x + snake.dx, y: snake.body[0].y + snake.dy };
                     if (head.x < 0 || head.x >= tileCountX || head.y < 0 || head.y >= tileCountY) { isPlaying = false; gameOverEl.innerHTML = `<h2 style="font-size: 2rem; color: red;">GAME OVER</h2><button class="cmd-button restart-btn" style="margin-top: 1rem;">> RESTART</button>`; if (!isTouchDevice) { document.getElementById('cursor-dot').style.display = 'block'; } return; }
                     for (let i = 1; i < snake.body.length; i++) { if (head.x === snake.body[i].x && head.y === snake.body[i].y) { isPlaying = false; gameOverEl.innerHTML = `<h2 style="font-size: 2rem; color: red;">GAME OVER</h2><button class="cmd-button restart-btn" style="margin-top: 1rem;">> RESTART</button>`; if (!isTouchDevice) { document.getElementById('cursor-dot').style.display = 'block'; } return; } }
