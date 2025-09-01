@@ -323,7 +323,7 @@
              
              <div id="cmd-container" class="hidden">
                 <p id="cmd-prompt">> MESSAGE:</p>
-                <div id="cmd-output" class="cmd-line min-h-[24px]"></div>
+                <div id="cmd-output" class="cmd-line min-h-[24px]" contenteditable="true"></div>
                 <button id="cmd-send-btn" class="cmd-button hidden">> SEND</button>
              </div>
              <div id="destroy-win-message">> You Win! &lt;</div>
@@ -747,7 +747,11 @@
                     const windowId = icon.dataset.window;
                     if (windowId === 'contact') {
                         if (activeWindow) closeActiveWindow();
-                        if (cmdState === 'idle') { cmdState = 'typing_message'; cmdContainer.classList.remove('hidden'); }
+                        cmdState = 'typing_message';
+                        cmdContainer.classList.remove('hidden');
+                        setTimeout(() => {
+                           cmdOutput.focus();
+                        }, 100);
                         return;
                     }
                     if (activeWindow) closeActiveWindow();
