@@ -182,15 +182,6 @@
         .snake-ability-score { display: flex; justify-content: space-between; }
         .snake-ability-score.active { color: white; text-shadow: 0 0 5px white; }
 
-        /* --- Mobile-Friendly Snake Controls --- */
-        #d-pad { display: none; position: absolute; bottom: 10px; left: 10px; width: 120px; height: 120px; }
-        .d-pad-btn { position: absolute; width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); }
-        #d-pad-up { top: 0; left: 40px; }
-        #d-pad-down { bottom: 0; left: 40px; }
-        #d-pad-left { top: 40px; left: 0; }
-        #d-pad-right { top: 40px; right: 0; }
-        @media (hover: none) { #d-pad { display: block; } }
-
         /* Mobile controls for Destroy game */
         /* These controls should be hidden on desktop and only shown on mobile when the game is active. */
         #destroy-controls {
@@ -361,7 +352,7 @@
         <div data-content="skills">
             <h2 class="text-xl font-bold mb-4">> Executing C:\SYS\SKILLS.LOG...</h2>
             <div class="space-y-3">
-                <p>> Cinematic & Narrative Design [▉▉▉▉▉▉▉▉▉▉]</p>
+                <p>> Cinematic & Narrative & Narrative Design [▉▉▉▉▉▉▉▉▉▉]</p>
                 <p>> Gameplay Systems & AI       [▉▉▉▉▉▉▉▉▉ ]</p>
                 <p>> Mocap & VO Direction      [▉▉▉▉▉▉▉▉  ]</p>
                 <p>> Feature Ownership & Leadership[▉▉▉▉▉▉▉▉▉ ]</p>
@@ -369,7 +360,6 @@
         </div>
     </div>
     
-    <!-- Manual exit button for Destroy game -->
     <button id="destroy-exit-btn">EXIT</button>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -868,31 +858,48 @@
                     else if (key === 'arrowleft' || key === 'a') handleInput('left');
                     else if (key === 'arrowright' || key === 'd') handleInput('right');
                 }
-
-                function handleTouch(e) {
+                
+                // Swipe detection for mobile devices
+                let touchStartX = 0;
+                let touchStartY = 0;
+                
+                function handleTouchStart(e) {
                     e.preventDefault();
                     if (!isPlaying) return;
-                    const touchX = e.touches[0].clientX;
-                    const touchY = e.touches[0].clientY;
-                    const canvasWidth = canvas.clientWidth;
-                    const canvasHeight = canvas.clientHeight;
+                    touchStartX = e.touches[0].clientX;
+                    touchStartY = e.touches[0].clientY;
+                }
 
-                    const horizontalRatio = Math.abs(touchX - canvasWidth / 2) / (canvasWidth / 2);
-                    const verticalRatio = Math.abs(touchY - canvasHeight / 2) / (canvasHeight / 2);
+                function handleTouchMove(e) {
+                    e.preventDefault();
+                    if (!isPlaying) return;
+                }
 
-                    if (horizontalRatio > verticalRatio) {
+                function handleTouchEnd(e) {
+                    e.preventDefault();
+                    if (!isPlaying) return;
+
+                    const touchEndX = e.changedTouches[0].clientX;
+                    const touchEndY = e.changedTouches[0].clientY;
+
+                    const dx = touchEndX - touchStartX;
+                    const dy = touchEndY - touchStartY;
+                    
+                    const minSwipeDistance = 20;
+
+                    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > minSwipeDistance) {
                         // Horizontal swipe
-                        if (touchX < canvasWidth / 2) {
-                            handleInput('left');
-                        } else {
+                        if (dx > 0) {
                             handleInput('right');
-                        }
-                    } else {
-                        // Vertical swipe
-                        if (touchY < canvasHeight / 2) {
-                            handleInput('up');
                         } else {
+                            handleInput('left');
+                        }
+                    } else if (Math.abs(dy) > minSwipeDistance) {
+                        // Vertical swipe
+                        if (dy > 0) {
                             handleInput('down');
+                        } else {
+                            handleInput('up');
                         }
                     }
                 }
@@ -941,14 +948,20 @@
 
                 setupGame(); 
                 document.addEventListener('keydown', handleKeydown); 
-                canvas.addEventListener('touchstart', handleTouch, { passive: false });
+                canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+                canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+                canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+                canvas.addEventListener('touchcancel', handleTouchEnd, { passive: false });
                 gameLoop();
 
                 gameInstanceHandle.stop = () => { 
                     isPlaying = false; 
                     clearTimeout(gameLoopTimeout); 
                     document.removeEventListener('keydown', handleKeydown);
-                    canvas.removeEventListener('touchstart', handleTouch);
+                    canvas.removeEventListener('touchstart', handleTouchStart);
+                    canvas.removeEventListener('touchmove', handleTouchMove);
+                    canvas.removeEventListener('touchend', handleTouchEnd);
+                    canvas.removeEventListener('touchcancel', handleTouchEnd);
                 };
                 return gameInstanceHandle;
             }
