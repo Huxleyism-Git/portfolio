@@ -256,6 +256,7 @@
                 width: 100%;
                 justify-content: space-evenly;
                 gap: 5px;
+                flex-wrap: wrap; /* Allows icons to wrap to the next line */
             }
             .desktop-icon {
                 transform: scale(0.9);
@@ -910,7 +911,7 @@
                 canvas.width = window.innerWidth;
                 canvas.height = window.innerHeight;
 
-                const player = { x: canvas.width / 2 - 10, y: canvas.height - 30, width: 20, height: 20, speed: 5, dx: 0 };
+                const player = { x: canvas.width / 2 - 10, y: canvas.height - 30, width: 20, height: 20, speed: 5, dx: 0, moveDirection: 'none' };
                 const bullets = [];
                 let targets = [];
                 const winMessage = document.getElementById('destroy-win-message');
@@ -978,6 +979,15 @@
                     }
 
                     function update() {
+                        // Updated movement logic to be based on the moveDirection state
+                        if (player.moveDirection === 'left') {
+                            player.dx = -player.speed;
+                        } else if (player.moveDirection === 'right') {
+                            player.dx = player.speed;
+                        } else {
+                            player.dx = 0;
+                        }
+
                         player.x += player.dx;
                         if (player.x < 0) player.x = 0;
                         if (player.x > canvas.width - player.width) player.x = canvas.width - player.width;
@@ -1061,14 +1071,16 @@
                     
                     // Touch controls for mobile
                     function handleTouchStart(e) {
-                        if (e.target.id === 'destroy-left-btn') { player.dx = -player.speed; }
-                        else if (e.target.id === 'destroy-right-btn') { player.dx = player.speed; }
-                        // Prevent page gestures
-                        e.preventDefault(); 
+                        e.preventDefault();
+                        if (e.target.id === 'destroy-left-btn') { player.moveDirection = 'left'; }
+                        else if (e.target.id === 'destroy-right-btn') { player.moveDirection = 'right'; }
                     }
                     function handleTouchEnd(e) {
-                        player.dx = 0;
                         e.preventDefault();
+                        // Only stop movement if the finger is lifted from the button
+                        if (e.target.id === 'destroy-left-btn' || e.target.id === 'destroy-right-btn') {
+                             player.moveDirection = 'none';
+                        }
                     }
 
                     gameInstanceHandle.stop = () => {
