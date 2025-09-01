@@ -974,7 +974,7 @@
                 canvas.width = window.innerWidth;
                 canvas.height = window.innerHeight;
 
-                const player = { x: canvas.width / 2 - 10, y: canvas.height - 30, width: 20, height: 20, speed: 5, dx: 0, moveDirection: 'none' };
+                const player = { x: canvas.width / 2 - 10, y: canvas.height - 30, width: 20, height: 20, speed: 5, dx: 0 };
                 const bullets = [];
                 let targets = [];
                 const winMessage = document.getElementById('destroy-win-message');
@@ -1041,15 +1041,6 @@
                     }
 
                     function update() {
-                        // Updated movement logic to be based on the moveDirection state
-                        if (player.moveDirection === 'left') {
-                            player.dx = -player.speed;
-                        } else if (player.moveDirection === 'right') {
-                            player.dx = player.speed;
-                        } else {
-                            player.dx = 0;
-                        }
-
                         player.x += player.dx;
                         if (player.x < 0) player.x = 0;
                         if (player.x > canvas.width - player.width) player.x = canvas.width - player.width;
@@ -1136,14 +1127,14 @@
                         e.preventDefault(); 
                         const touchX = e.touches[0].clientX;
                         if (touchX < window.innerWidth / 2) { 
-                            player.moveDirection = 'left'; 
+                            player.dx = -player.speed; 
                         } else { 
-                            player.moveDirection = 'right'; 
+                            player.dx = player.speed;
                         }
                     }
                     function handleTouchEnd(e) {
                         e.preventDefault();
-                        player.moveDirection = 'none';
+                        player.dx = 0;
                     }
 
                     gameInstanceHandle.stop = () => {
