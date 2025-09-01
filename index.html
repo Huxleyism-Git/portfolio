@@ -267,14 +267,6 @@
             text-shadow: 0 0 5px lime;
             display: none;
         }
-        #snake-start-message h2 {
-            font-size: 1.5rem;
-            margin-bottom: 0.5rem;
-        }
-        #snake-start-message p {
-            font-size: 1rem;
-            opacity: 0.8;
-        }
         .snake-game-active #snake-start-message {
             display: block;
         }
@@ -1450,7 +1442,17 @@
                         });
 
                         const result = await response.json();
-                        const aiText = result.candidates?.[0]?.content?.parts?.[0]?.text || '> ERROR: RESPONSE DATA CORRUPTED. PLEASE TRY AGAIN.';
+                        let aiText;
+                        if (result.candidates && result.candidates.length > 0 && result.candidates[0].content && result.candidates[0].content.parts && result.candidates[0].content.parts[0].text) {
+                            aiText = result.candidates[0].content.parts[0].text;
+                        } else {
+                            // Check for safety or other reasons for no candidates
+                            if (result.promptFeedback && result.promptFeedback.blockReason) {
+                                aiText = `> ACCESS DENIED. REASON: ${result.promptFeedback.blockReason.toUpperCase()}.`;
+                            } else {
+                                aiText = '> ERROR: NO VALID RESPONSE RECEIVED. PLEASE RE-CHECK YOUR QUERY.';
+                            }
+                        }
 
                         // Remove loading dots and display AI response
                         chatMessages.removeChild(aiLoadingEl);
