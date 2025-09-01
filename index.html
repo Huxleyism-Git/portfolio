@@ -22,6 +22,7 @@
             overflow: hidden;
             height: 100%;
             cursor: none;
+            touch-action: none; /* Prevents default mobile gestures like scrolling and zooming */
         }
         #bg-canvas {
             position: fixed;
@@ -189,6 +190,39 @@
         #d-pad-right { top: 40px; right: 0; }
         @media (hover: none) { #d-pad { display: block; } }
 
+        /* Mobile controls for Destroy game */
+        /* These controls should be hidden on desktop and only shown on mobile when the game is active. */
+        #destroy-controls {
+            display: none;
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            justify-content: center;
+            gap: 20%;
+        }
+        #destroy-controls button {
+            background-color: transparent;
+            border: 2px solid var(--matrix-green);
+            color: var(--matrix-green);
+            padding: 1rem 2rem;
+            font-size: 1.5rem;
+            cursor: none;
+            border-radius: 10px;
+            opacity: 0.7;
+            transition: opacity 0.3s;
+        }
+        #destroy-controls button:active {
+            opacity: 1;
+            box-shadow: 0 0 5px var(--matrix-green), 0 0 10px var(--matrix-green), 0 0 15px var(--matrix-green);
+        }
+        /* Media query to only show controls on mobile devices with the active class */
+        @media (max-width: 768px) {
+            body.destroy-game-active #destroy-controls {
+                display: flex;
+            }
+        }
+
+
         /* Mute Button */
         #mute-btn { position: fixed; bottom: 20px; right: 20px; z-index: 1000; font-size: 24px; opacity: 0.5; transition: opacity 0.3s; }
         #mute-btn:hover { opacity: 1; }
@@ -220,6 +254,10 @@
                 top: 50% !important;
                 left: 50% !important;
                 transform: translate(-50%, -50%);
+            }
+            body {
+                /* On touch devices, allow vertical scrolling to ensure content isn't trapped */
+                overflow-y: auto;
             }
         }
     </style>
@@ -297,6 +335,11 @@
                 <p>> Feature Ownership & Leadership[▉▉▉▉▉▉▉▉▉ ]</p>
             </div>
         </div>
+    </div>
+    <!-- Mobile controls for the Destroy game -->
+    <div id="destroy-controls">
+        <button id="destroy-left-btn">◀</button>
+        <button id="destroy-right-btn">▶</button>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -859,28 +902,40 @@
                 const bullets = [];
                 let targets = [];
                 const winMessage = document.getElementById('destroy-win-message');
+                const leftBtn = document.getElementById('destroy-left-btn');
+                const rightBtn = document.getElementById('destroy-right-btn');
                 
                 const nameEl = document.getElementById('main-name');
                 const subtitleEl = document.getElementById('subtitle');
                 
                 async function setupTargets() {
                     targets = [];
-                    [nameEl, subtitleEl].forEach(el => {
-                        let text = '';
-                        if (el.id === 'main-name') text = 'BERK GUNES';
-                        else text = 'GAME & REALIZATION DESIGNER';
-                        
-                        el.innerHTML = '';
-                        text.split('').forEach(char => {
-                            const span = document.createElement('span');
-                            span.textContent = char;
-                            if (char !== ' ') { span.classList.add('hittable-char'); }
-                            el.appendChild(span);
-                        });
+                    // Ensure the elements are visible and laid out before trying to get their positions
+                    nameEl.style.display = 'block';
+                    subtitleEl.style.display = 'block';
+                    
+                    nameEl.innerHTML = '';
+                    subtitleEl.innerHTML = '';
+                    
+                    const nameText = 'BERK GUNES';
+                    const subtitleText = 'GAME & REALIZATION DESIGNER';
+                    
+                    nameText.split('').forEach(char => {
+                        const span = document.createElement('span');
+                        span.textContent = char;
+                        if (char !== ' ') { span.classList.add('hittable-char'); }
+                        nameEl.appendChild(span);
+                    });
+                    subtitleText.split('').forEach(char => {
+                        const span = document.createElement('span');
+                        span.textContent = char;
+                        if (char !== ' ') { span.classList.add('hittable-char'); }
+                        subtitleEl.appendChild(span);
                     });
                     
                     return new Promise(resolve => {
-                        setTimeout(() => {
+                         // Use requestAnimationFrame to wait for the next repaint
+                        requestAnimationFrame(() => {
                             document.querySelectorAll('.hittable-char').forEach(el => {
                                 const rect = el.getBoundingClientRect();
                                 if (rect.width > 0) {
@@ -888,14 +943,14 @@
                                 }
                             });
                             resolve();
-                        }, 100);
+                        });
                     });
                 }
                 
                 async function startGameLogic() {
                     await setupTargets();
                     if(targets.length === 0) {
-                        console.error("Could not initialize targets for destroy game.");
+                        console.error("Could not initialize targets for destroy game. Please reload.");
                         closeActiveWindow();
                         return;
                     }
@@ -938,7 +993,9 @@
 
                             for (let j = targets.length - 1; j >= 0; j--) {
                                 const t = targets[j];
-                                if (t.alive && b.x > t.rect.left && b.x < t.rect.right && b.y > t.rect.top && b.y < t.rect.bottom) {
+                                // Check for collision based on element's current position, not initial
+                                const tRect = t.el.getBoundingClientRect();
+                                if (t.alive && b.x > tRect.left && b.x < tRect.right && b.y > tRect.top && b.y < tRect.bottom) {
                                     t.alive = false;
                                     t.el.style.transition = 'opacity 0.3s';
                                     t.el.style.opacity = '0';
@@ -979,6 +1036,7 @@
                         }
                     }
 
+                    // Keyboard controls
                     function handleKeydown(e) {
                         const key = e.key.toLowerCase();
                         if (key === 'arrowleft' || key === 'a') player.dx = -player.speed;
@@ -989,11 +1047,29 @@
                         if ((key === 'arrowleft' || key === 'a') || (key === 'arrowright' || key === 'd')) player.dx = 0;
                     }
                     
+                    // Touch controls for mobile
+                    function handleTouchStart(e) {
+                        e.preventDefault();
+                        if (e.target.id === 'destroy-left-btn') { player.dx = -player.speed; }
+                        else if (e.target.id === 'destroy-right-btn') { player.dx = player.speed; }
+                    }
+                    function handleTouchEnd(e) {
+                        e.preventDefault();
+                        player.dx = 0;
+                    }
+
                     gameInstanceHandle.stop = () => {
                         isPlaying = false;
                         clearInterval(shootInterval);
                         document.removeEventListener('keydown', handleKeydown);
                         document.removeEventListener('keyup', handleKeyup);
+                        leftBtn.removeEventListener('touchstart', handleTouchStart);
+                        rightBtn.removeEventListener('touchstart', handleTouchStart);
+                        leftBtn.removeEventListener('touchend', handleTouchEnd);
+                        rightBtn.removeEventListener('touchend', handleTouchEnd);
+                        leftBtn.removeEventListener('touchcancel', handleTouchEnd);
+                        rightBtn.removeEventListener('touchcancel', handleTouchEnd);
+
                         document.body.classList.remove('destroy-game-active');
                         canvas.style.display = 'none';
                         winMessage.style.display = 'none';
@@ -1040,6 +1116,13 @@
 
                     document.addEventListener('keydown', handleKeydown);
                     document.addEventListener('keyup', handleKeyup);
+                    leftBtn.addEventListener('touchstart', handleTouchStart, {passive: false});
+                    rightBtn.addEventListener('touchstart', handleTouchStart, {passive: false});
+                    leftBtn.addEventListener('touchend', handleTouchEnd, {passive: false});
+                    rightBtn.addEventListener('touchend', handleTouchEnd, {passive: false});
+                    leftBtn.addEventListener('touchcancel', handleTouchEnd, {passive: false});
+                    rightBtn.addEventListener('touchcancel', handleTouchEnd, {passive: false});
+
                     const shootInterval = setInterval(shoot, 200);
                     gameLoop();
                 }
@@ -1076,5 +1159,3 @@
     </script>
 </body>
 </html>
-
-
