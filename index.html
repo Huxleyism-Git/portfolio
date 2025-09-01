@@ -12,7 +12,7 @@
         :root {
             --matrix-green: #29a329;
             --matrix-green-dark: #145214;
-            --bg-color: #0c0c14;
+            --bg-color: #0c0c14;
             --neon-glow: 0 0 4px #fff, 0 0 10px var(--matrix-green), 0 0 20px var(--matrix-green);
         }
         body, html {
@@ -244,6 +244,25 @@
             cursor: pointer; /* Makes it look clickable */
             user-select: none; /* Prevents text selection on mobile tap */
         }
+        
+        #destroy-exit-btn {
+            display: none;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            font-size: 1rem;
+            padding: 0.5rem 1rem;
+            border: 2px solid #ccc;
+            background: #000;
+            color: #ccc;
+            z-index: 999;
+            cursor: pointer;
+            text-shadow: 0 0 5px #ff00ff;
+        }
+        body.destroy-game-active #destroy-exit-btn {
+            display: block;
+        }
+
 
         /* --- Mobile-Specific Styles --- */
         @media (max-width: 768px) {
@@ -354,6 +373,9 @@
         <button id="destroy-left-btn">◀</button>
         <button id="destroy-right-btn">▶</button>
     </div>
+    
+    <!-- Manual exit button for Destroy game -->
+    <button id="destroy-exit-btn">EXIT</button>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
@@ -917,6 +939,7 @@
                 const winMessage = document.getElementById('destroy-win-message');
                 const leftBtn = document.getElementById('destroy-left-btn');
                 const rightBtn = document.getElementById('destroy-right-btn');
+                const exitBtn = document.getElementById('destroy-exit-btn');
                 
                 const nameEl = document.getElementById('main-name');
                 const subtitleEl = document.getElementById('subtitle');
@@ -1071,15 +1094,27 @@
                     
                     // Touch controls for mobile
                     function handleTouchStart(e) {
+                        if (e.target.id === 'destroy-left-btn') { player.moveDirection = 'left'; }
+                        else if (e.target.id === 'destroy-right-btn') { player.moveDirection = 'right'; }
+                        // Prevent page gestures
+                        e.preventDefault(); 
+                    }
+                    function handleTouchEnd(e) {
+                         // Only stop movement if the finger is lifted from a move button
+                        if (e.target.id === 'destroy-left-btn' || e.target.id === 'destroy-right-btn') {
+                            player.moveDirection = 'none';
+                        }
                         e.preventDefault();
+                    }
+                    
+                    // Mouse controls for desktop fallback
+                    function handleMouseDown(e) {
                         if (e.target.id === 'destroy-left-btn') { player.moveDirection = 'left'; }
                         else if (e.target.id === 'destroy-right-btn') { player.moveDirection = 'right'; }
                     }
-                    function handleTouchEnd(e) {
-                        e.preventDefault();
-                        // Only stop movement if the finger is lifted from the button
+                    function handleMouseUp(e) {
                         if (e.target.id === 'destroy-left-btn' || e.target.id === 'destroy-right-btn') {
-                             player.moveDirection = 'none';
+                            player.moveDirection = 'none';
                         }
                     }
 
@@ -1094,7 +1129,11 @@
                         rightBtn.removeEventListener('touchend', handleTouchEnd);
                         leftBtn.removeEventListener('touchcancel', handleTouchEnd);
                         rightBtn.removeEventListener('touchcancel', handleTouchEnd);
+                        leftBtn.removeEventListener('mousedown', handleMouseDown);
+                        rightBtn.removeEventListener('mousedown', handleMouseDown);
+                        document.removeEventListener('mouseup', handleMouseUp);
                         winMessage.removeEventListener('click', closeActiveWindow);
+                        exitBtn.removeEventListener('click', closeActiveWindow);
 
                         document.body.classList.remove('destroy-game-active');
                         canvas.style.display = 'none';
@@ -1148,7 +1187,11 @@
                     rightBtn.addEventListener('touchend', handleTouchEnd, {passive: false});
                     leftBtn.addEventListener('touchcancel', handleTouchEnd, {passive: false});
                     rightBtn.addEventListener('touchcancel', handleTouchEnd, {passive: false});
+                    leftBtn.addEventListener('mousedown', handleMouseDown);
+                    rightBtn.addEventListener('mousedown', handleMouseDown);
+                    document.addEventListener('mouseup', handleMouseUp);
                     winMessage.addEventListener('click', closeActiveWindow);
+                    exitBtn.addEventListener('click', closeActiveWindow);
 
                     const shootInterval = setInterval(shoot, 200);
                     gameLoop();
