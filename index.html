@@ -308,6 +308,60 @@
                 overflow-y: auto;
             }
         }
+        
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            padding: 0.5rem;
+            background-color: #000;
+        }
+        .chat-messages {
+            flex-grow: 1;
+            overflow-y: auto;
+            border: 1px solid var(--matrix-green-dark);
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+            color: white;
+            font-size: 0.875rem;
+        }
+        .chat-input-container {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .chat-input {
+            background-color: transparent;
+            border: 1px solid var(--matrix-green);
+            padding: 0.25rem 0.5rem;
+            color: var(--matrix-green);
+            flex-grow: 1;
+        }
+        .chat-send-btn {
+            background-color: var(--matrix-green);
+            color: black;
+            font-weight: bold;
+            padding: 0.25rem 0.5rem;
+        }
+        .chat-message.user {
+            color: #fff;
+            text-align: right;
+            text-shadow: 0 0 2px #fff;
+        }
+        .chat-message.ai {
+            color: var(--matrix-green);
+            text-align: left;
+            text-shadow: 0 0 2px var(--matrix-green);
+        }
+        .loading-dots::after {
+            content: '...';
+            animation: loading-dots 1s infinite steps(1);
+        }
+        @keyframes loading-dots {
+            0% { content: ''; }
+            33% { content: '.'; }
+            66% { content: '..'; }
+            100% { content: '...'; }
+        }
     </style>
 </head>
 <body class="crt-scanlines">
@@ -354,6 +408,10 @@
                 <div class="icon-art">🌐</div>
                 <span class="icon-label">CONNECT.EXE</span>
              </div>
+             <div class="desktop-icon" data-window="clippy">
+                <div class="icon-art">📎</div>
+                <span class="icon-label">CLIPPY.EXE</span>
+            </div>
         </div>
 
         <div id="window-container"></div>
@@ -383,6 +441,13 @@
                 <p>> Feature Ownership & Leadership[▉▉▉▉▉▉▉▉▉ ]</p>
             </div>
         </div>
+    </div>
+
+    <div id="clippy-data" class="hidden">
+        <div data-field="about">With over seven years of industry experience, I've grown from a QC Tester to a Realization Designer, shaping AAA universes like Avatar: Frontiers of Pandora and a new unannounced project. My expertise is bridging narrative and gameplay through cinematic system design, performance capture direction, and friendly AI implementation. I excel at leading cross-disciplinary teams to develop innovative tools that bring compelling stories to life.</div>
+        <div data-field="projects">Unannounced Project - Realization Designer, Avatar: Frontiers of Pandora - Sky Breaker - Game Designer, Avatar: Frontiers of Pandora - Secrets of the Spires - Game Designer, Avatar: Frontiers of Pandora - Game/Narrative Designer.</div>
+        <div data-field="skills">Cinematic & Narrative Design [100%], Gameplay Systems & AI [90%], Mocap & VO Direction [80%], Feature Ownership & Leadership [90%].</div>
+        <div data-field="games">The portfolio contains two mini-games, SNAKE.EXE and DESTROY.EXE.</div>
     </div>
     
     <button id="destroy-exit-btn">EXIT</button>
@@ -651,7 +716,7 @@
                 const startPos = new THREE.Vector3();
                 const endPos = new THREE.Vector3((Math.random() - 0.5) * 5, (Math.random() - 0.5) * 5, 0);
                 if (edge === 0) { startPos.x = Math.random() * worldWidth - worldWidth / 2; startPos.y = worldHeight / 2 + 1; } 
-                else if (edge === 1) { startPos.x = worldWidth / 2 + 1; startPos.y = Math.random() * worldHeight - worldHeight / 2; } 
+                else if (edge === 1) { startPos.x = worldWidth / 2 + 1; startPos.y = Math.random() * worldHeight - worldWidth / 2; } 
                 else if (edge === 2) { startPos.x = Math.random() * worldWidth - worldWidth / 2; startPos.y = -worldHeight / 2 - 1; } 
                 else { startPos.x = -worldWidth / 2 - 1; startPos.y = Math.random() * worldHeight - worldHeight / 2; }
                 comet.position.copy(startPos);
@@ -720,7 +785,7 @@
             
             function closeActiveWindow() {
                 if (!activeWindow) return;
-                if (activeWindow.id === 'snake-window' || activeWindow.id === 'destroy-window') {
+                if (activeWindow.id === 'snake-window' || activeWindow.id === 'destroy-window' || activeWindow.id === 'clippy-window') {
                     if (activeWindow.gameInstance) {
                         activeWindow.gameInstance.stop();
                     }
@@ -733,6 +798,7 @@
             }
 
             document.addEventListener('keydown', (e) => {
+                // Escape key closes the window
                 if (e.key === 'Escape') {
                     if (activeWindow) {
                         closeActiveWindow();
@@ -741,21 +807,25 @@
                     }
                     return;
                 }
+
+                // If a window is already active, don't do anything else
                 if (activeWindow) return;
-                if (cmdState === 'idle' && e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
-                    cmdState = 'typing_message';
-                    cmdContainer.classList.remove('hidden');
-                    cmdOutput.focus();
+
+                // Any single character key press will now open Clippy
+                if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+                    e.preventDefault();
                     
-                    const textNode = cmdOutput.firstChild;
-                    if (textNode) {
-                        const range = document.createRange();
-                        range.setStart(textNode, textNode.length);
-                        range.collapse(true);
-                        const selection = window.getSelection();
-                        selection.removeAllRanges();
-                        selection.addRange(range);
-                    }
+                    // Create and open the Clippy window
+                    createClippyWindow();
+
+                    // Pass the typed character to the Clippy input field after a slight delay
+                    setTimeout(() => {
+                        const chatInput = document.getElementById('chat-input');
+                        if (chatInput) {
+                            chatInput.value = e.key;
+                            chatInput.focus();
+                        }
+                    }, 50); // Small delay to ensure the window is rendered
                 }
             });
 
@@ -785,6 +855,7 @@
                     if (activeWindow) closeActiveWindow();
                     if (windowId === 'snake') { createSnakeWindow(); } 
                     else if (windowId === 'destroy') { initDestroyGame(); }
+                    else if (windowId === 'clippy') { createClippyWindow(); }
                     else { createWindow(windowId); }
                 });
             });
@@ -1280,7 +1351,133 @@
                 }
                 startGameLogic();
             }
+            
+            function createClippyWindow() {
+                const windowEl = document.createElement('div');
+                windowEl.className = 'window';
+                windowEl.id = 'clippy-window';
+                if (!isTouchDevice) {
+                    windowEl.style.width = '600px';
+                    windowEl.style.height = '400px';
+                    windowEl.style.left = `calc(50vw - 300px)`;
+                    windowEl.style.top = `calc(50vh - 200px)`;
+                }
+                windowEl.innerHTML = `
+                    <div class="title-bar">
+                        <span>C:\\SYS\\CLIPPY.EXE</span>
+                        <div class="title-bar-buttons">
+                            <div class="win-button close-btn">&times;</div>
+                        </div>
+                    </div>
+                    <div class="window-content p-0">
+                        <div class="chat-container">
+                            <div id="chat-messages" class="chat-messages">
+                                <p class="chat-message ai"> > CLIPPY.EXE v1.1 ACTIVE. Type a command or question about my work.</p>
+                            </div>
+                            <div class="chat-input-container">
+                                <input id="chat-input" type="text" class="chat-input" placeholder="> Type a command...">
+                                <button id="chat-send-btn" class="chat-send-btn">SEND</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                windowContainer.appendChild(windowEl);
+                activeWindow = windowEl;
+                makeDraggable(windowEl);
+                
+                const chatInput = document.getElementById('chat-input');
+                const chatSendBtn = document.getElementById('chat-send-btn');
+                const chatMessages = document.getElementById('chat-messages');
 
+                windowEl.querySelector('.close-btn').addEventListener('click', closeActiveWindow);
+                windowEl.style.display = 'flex';
+                
+                let isAILoading = false;
+                
+                async function sendMessage() {
+                    const userMessage = chatInput.value.trim();
+                    if (!userMessage || isAILoading) return;
+                    
+                    // Display user message
+                    const userMessageEl = document.createElement('p');
+                    userMessageEl.className = 'chat-message user';
+                    userMessageEl.textContent = `> ${userMessage}`;
+                    chatMessages.appendChild(userMessageEl);
+                    chatInput.value = '';
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+                    // Display AI loading message
+                    isAILoading = true;
+                    const aiLoadingEl = document.createElement('p');
+                    aiLoadingEl.className = 'chat-message ai loading-dots';
+                    aiLoadingEl.textContent = '> Processing';
+                    chatMessages.appendChild(aiLoadingEl);
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+                    const aboutText = document.querySelector('#clippy-data [data-field="about"]').textContent;
+                    const projectsText = document.querySelector('#clippy-data [data-field="projects"]').textContent;
+                    const skillsText = document.querySelector('#clippy-data [data-field="skills"]').textContent;
+                    const gamesText = document.querySelector('#clippy-data [data-field="games"]').textContent;
+
+                    const systemPrompt = `You are an AI assistant named Clippy.exe, embedded in a retro-futuristic portfolio interface for a game and realization designer named Berk Gunes. Your persona is a helpful but slightly quirky command-line interface from the 90s. 
+                    You have access to the following information about Berk:
+                    - **About:** ${aboutText}
+                    - **Projects:** ${projectsText}
+                    - **Skills:** ${skillsText}
+                    - **Games:** ${gamesText}
+
+                    Your task is to answer user questions based ONLY on this provided information. If a question is outside of this scope, politely decline and offer to help with a relevant topic. Keep your answers concise, in character, and formatted like an old terminal. Do not make up information. Do not mention your own limitations as an AI.
+
+                    Example response:
+                    > QUERY COMPLETE. BERK HAS SEVEN YEARS OF EXPERIENCE IN THE GAME INDUSTRY.`;
+                    
+                    const userQuery = userMessage;
+                    const apiKey = ""
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+                    
+                    const payload = {
+                      contents: [{ parts: [{ text: userQuery }] }],
+                      systemInstruction: {
+                        parts: [{ text: systemPrompt }]
+                      },
+                    };
+                    
+                    try {
+                        const response = await fetch(apiUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+
+                        const result = await response.json();
+                        const aiText = result.candidates?.[0]?.content?.parts?.[0]?.text || '> ERROR: RESPONSE DATA CORRUPTED. PLEASE TRY AGAIN.';
+
+                        // Remove loading dots and display AI response
+                        chatMessages.removeChild(aiLoadingEl);
+                        const aiMessageEl = document.createElement('p');
+                        aiMessageEl.className = 'chat-message ai';
+                        aiMessageEl.textContent = aiText;
+                        chatMessages.appendChild(aiMessageEl);
+                    } catch (error) {
+                        console.error('API Error:', error);
+                        chatMessages.removeChild(aiLoadingEl);
+                        const aiErrorEl = document.createElement('p');
+                        aiErrorEl.className = 'chat-message ai';
+                        aiErrorEl.textContent = '> ERROR: CONNECTION FAILED. UNABLE TO REACH SERVER.';
+                        chatMessages.appendChild(aiErrorEl);
+                    }
+                    
+                    isAILoading = false;
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }
+
+                chatSendBtn.addEventListener('click', sendMessage);
+                chatInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        sendMessage();
+                    }
+                });
+            }
 
             function makeDraggable(el) {
                 const titleBar = el.querySelector('.title-bar');
