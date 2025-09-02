@@ -270,7 +270,28 @@
         .snake-game-active #snake-start-message {
             display: block;
         }
-
+        .win-toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 1rem 2rem;
+            background-color: #000;
+            color: lime;
+            border: 2px solid lime;
+            border-radius: 8px;
+            box-shadow: var(--neon-glow);
+            z-index: 10000;
+            font-size: 1.5rem;
+            display: none;
+            animation: fade-in-out 3s forwards;
+        }
+        @keyframes fade-in-out {
+            0% { opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { opacity: 0; }
+        }
 
         /* --- Mobile-Specific Styles --- */
         @media (max-width: 768px) {
@@ -443,6 +464,7 @@
     </div>
     
     <button id="destroy-exit-btn">EXIT</button>
+    <div id="win-toast" class="win-toast">YOU WIN!</div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
@@ -1113,41 +1135,48 @@
                 canvas.height = window.innerHeight;
 
                 const player = { x: canvas.width / 2 - 10, y: canvas.height - 30, width: 20, height: 20, speed: 5, dx: 0 };
-                const bullets = [];
+                let bullets = [];
                 let targets = [];
+                let defensiveMissiles = [];
                 const winMessage = document.getElementById('destroy-win-message');
                 const exitBtn = document.getElementById('destroy-exit-btn');
+                const winToast = document.getElementById('win-toast');
                 
                 const nameEl = document.getElementById('main-name');
                 const subtitleEl = document.getElementById('subtitle');
                 
-                async function setupTargets() {
+                let isPlaying = true;
+                let currentLevel = 1;
+                let gameLoopInterval, defensiveMissileInterval, blinkingInterval;
+                let gameInstanceHandle = { stop: () => {} };
+
+                function setupTargets(level) {
                     targets = [];
-                    // Ensure the elements are visible and laid out before trying to get their positions
-                    nameEl.style.display = 'block';
-                    subtitleEl.style.display = 'block';
-                    
                     nameEl.innerHTML = '';
                     subtitleEl.innerHTML = '';
                     
-                    const nameText = 'BERK GUNES';
-                    const subtitleText = 'GAME & REALIZATION DESIGNER';
+                    if (level >= 1) {
+                         const nameText = 'BERK GUNES';
+                         nameText.split('').forEach(char => {
+                            const span = document.createElement('span');
+                            span.textContent = char;
+                            if (char !== ' ') { span.classList.add('hittable-char'); }
+                            nameEl.appendChild(span);
+                        });
+                        const subtitleText = 'GAME & REALIZATION DESIGNER';
+                        subtitleText.split('').forEach(char => {
+                            const span = document.createElement('span');
+                            span.textContent = char;
+                            if (char !== ' ') { span.classList.add('hittable-char'); }
+                            subtitleEl.appendChild(span);
+                        });
+                    }
                     
-                    nameText.split('').forEach(char => {
-                        const span = document.createElement('span');
-                        span.textContent = char;
-                        if (char !== ' ') { span.classList.add('hittable-char'); }
-                        nameEl.appendChild(span);
-                    });
-                    subtitleText.split('').forEach(char => {
-                        const span = document.createElement('span');
-                        span.textContent = char;
-                        if (char !== ' ') { span.classList.add('hittable-char'); }
-                        subtitleEl.appendChild(span);
-                    });
+                    // Reposition elements before getting their bounding rects
+                    nameEl.style.display = 'block';
+                    subtitleEl.style.display = 'block';
                     
                     return new Promise(resolve => {
-                         // Use requestAnimationFrame to wait for the next repaint
                         requestAnimationFrame(() => {
                             document.querySelectorAll('.hittable-char').forEach(el => {
                                 const rect = el.getBoundingClientRect();
@@ -1160,188 +1189,272 @@
                     });
                 }
                 
-                async function startGameLogic() {
-                    await setupTargets();
-                    if(targets.length === 0) {
-                        console.error("Could not initialize targets for destroy game. Please reload.");
-                        closeActiveWindow();
-                        return;
+                async function startLevel(level) {
+                    currentLevel = level;
+                    bullets = [];
+                    defensiveMissiles = [];
+
+                    await setupTargets(currentLevel);
+
+                    winMessage.style.display = 'block';
+                    if (currentLevel === 2) {
+                        winMessage.textContent = '> LVL 2 <';
+                    } else if (currentLevel === 3) {
+                        winMessage.textContent = '> LVL 3 <';
+                    } else {
+                        winMessage.textContent = '> LVL 1 <';
                     }
 
-                    let isPlaying = true;
-                    let gameInstanceHandle = { stop: () => {} };
+                    setTimeout(() => {
+                        winMessage.style.display = 'none';
+                        isPlaying = true;
+                        gameLoopInterval = setInterval(gameLoop, 1000 / 60);
 
-                    function gameLoop() {
-                        if (!isPlaying) return;
-                        update();
-                        draw();
-                        requestAnimationFrame(gameLoop);
-                    }
+                        // Start defensive missiles for levels 2 and 3
+                        if (currentLevel >= 2) {
+                            defensiveMissileInterval = setInterval(launchDefensiveMissile, 1000);
+                        }
 
-                    function update() {
-                        player.x += player.dx;
-                        if (player.x < 0) player.x = 0;
-                        if (player.x > canvas.width - player.width) player.x = canvas.width - player.width;
-                        
-                        const livingTargets = targets.filter(t => t.alive);
-                        if (livingTargets.length > 0) {
-                            let totalX = 0, totalY = 0;
-                            livingTargets.forEach(t => {
-                                totalX += t.rect.left + t.rect.width / 2;
-                                totalY += t.rect.top + t.rect.height / 2;
-                            });
-                            const avgX = (totalX / livingTargets.length / window.innerWidth) * 2 - 1;
-                            const avgY = -(totalY / livingTargets.length / window.innerHeight) * 2 + 1;
-
-                            let tempVec = new THREE.Vector3(avgX, avgY, 0.5).unproject(camera);
-                            let dir = tempVec.sub(camera.position).normalize();
-                            let distance = -camera.position.z / dir.z;
-                            gravityCenter.copy(camera.position.clone().add(dir.multiplyScalar(distance)));
+                        // Start blinking for level 3
+                        if (currentLevel >= 3) {
+                            blinkingInterval = setInterval(toggleTargetVisibility, 150);
                         }
                         
-                        for (let i = bullets.length - 1; i >= 0; i--) {
-                            const b = bullets[i];
-                            b.y -= b.speed;
-                            if (b.y < 0) { bullets.splice(i, 1); continue; }
+                    }, 2000);
+                }
+                
+                function toggleTargetVisibility() {
+                    targets.forEach(t => {
+                        if (t.alive) {
+                            const isVisible = Math.random() > 0.5;
+                            t.el.style.opacity = isVisible ? '1' : '0.1';
+                        }
+                    });
+                }
+                
+                function launchDefensiveMissile() {
+                    const startX = Math.random() * canvas.width;
+                    defensiveMissiles.push({
+                        x: startX,
+                        y: 0,
+                        speed: 2 + Math.random() * 2, // Varied speed
+                        size: 5,
+                        dy: 1
+                    });
+                }
 
-                            for (let j = targets.length - 1; j >= 0; j--) {
-                                const t = targets[j];
-                                // Check for collision based on element's current position, not initial
-                                const tRect = t.el.getBoundingClientRect();
-                                if (t.alive && b.x > tRect.left && b.x < tRect.right && b.y > tRect.top && b.y < tRect.bottom) {
-                                    t.alive = false;
-                                    t.el.style.transition = 'opacity 0.3s';
-                                    t.el.style.opacity = '0';
-                                    bullets.splice(i, 1);
-                                    break;
-                                }
+                function gameLoop() {
+                    if (!isPlaying) return;
+                    update();
+                    draw();
+                }
+
+                function update() {
+                    player.x += player.dx;
+                    if (player.x < 0) player.x = 0;
+                    if (player.x > canvas.width - player.width) player.x = canvas.width - player.width;
+                    
+                    const livingTargets = targets.filter(t => t.alive);
+                    
+                    // Update gravity center for hover particles
+                    if (livingTargets.length > 0) {
+                        let totalX = 0, totalY = 0;
+                        livingTargets.forEach(t => {
+                            totalX += t.el.getBoundingClientRect().left + t.el.getBoundingClientRect().width / 2;
+                            totalY += t.el.getBoundingClientRect().top + t.el.getBoundingClientRect().height / 2;
+                        });
+                        const avgX = (totalX / livingTargets.length / window.innerWidth) * 2 - 1;
+                        const avgY = -(totalY / livingTargets.length / window.innerHeight) * 2 + 1;
+
+                        let tempVec = new THREE.Vector3(avgX, avgY, 0.5).unproject(camera);
+                        let dir = tempVec.sub(camera.position).normalize();
+                        let distance = -camera.position.z / dir.z;
+                        gravityCenter.copy(camera.position.clone().add(dir.multiplyScalar(distance)));
+                    }
+
+                    // Update and check player bullets
+                    for (let i = bullets.length - 1; i >= 0; i--) {
+                        const b = bullets[i];
+                        b.y -= b.speed;
+                        if (b.y < 0) { bullets.splice(i, 1); continue; }
+
+                        for (let j = targets.length - 1; j >= 0; j--) {
+                            const t = targets[j];
+                            const tRect = t.el.getBoundingClientRect();
+                            const isVisible = parseFloat(t.el.style.opacity || '1') > 0.5;
+                            if (t.alive && isVisible && b.x > tRect.left && b.x < tRect.right && b.y > tRect.top && b.y < tRect.bottom) {
+                                t.alive = false;
+                                t.el.style.transition = 'opacity 0.3s';
+                                t.el.style.opacity = '0';
+                                bullets.splice(i, 1);
+                                break;
                             }
                         }
-                        
-                        if (targets.every(t => !t.alive)) {
-                            isPlaying = false;
-                            triggerParticleExplosion();
-                            setTimeout(() => {
-                                winMessage.style.display = 'block';
-                            }, 1500)
-                        }
-                    }
-
-                    function draw() {
-                        ctx.clearRect(0, 0, canvas.width, canvas.height);
-                        ctx.fillStyle = 'red';
-                        ctx.beginPath();
-                        ctx.moveTo(player.x, player.y);
-                        ctx.lineTo(player.x + player.width, player.y);
-                        ctx.lineTo(player.x + player.width / 2, player.y - player.height);
-                        ctx.closePath();
-                        ctx.fill();
-
-                        ctx.fillStyle = '#fff';
-                        bullets.forEach(b => {
-                            ctx.fillRect(b.x - 1, b.y, 2, 5);
-                        });
-                    }
-
-                    function shoot() {
-                        if (isPlaying) {
-                            bullets.push({ x: player.x + player.width / 2, y: player.y - player.height, speed: 7 });
-                        }
-                    }
-
-                    // Keyboard controls
-                    function handleKeydown(e) {
-                        const key = e.key.toLowerCase();
-                        if (key === 'arrowleft' || key === 'a') player.dx = -player.speed;
-                        else if (key === 'arrowright' || key === 'd') player.dx = player.speed;
-                    }
-                    function handleKeyup(e) {
-                        const key = e.key.toLowerCase();
-                        if ((key === 'arrowleft' || key === 'a') || (key === 'arrowright' || key === 'd')) player.dx = 0;
                     }
                     
-                    // Touch controls for mobile
-                    function handleTouchStart(e) {
-                        e.preventDefault(); 
-                        const touchX = e.touches[0].clientX;
-                        if (touchX < window.innerWidth / 2) { 
-                            player.dx = -player.speed; 
-                        } else { 
-                            player.dx = player.speed;
+                    // Update and check defensive missiles (for levels 2 and 3)
+                    for (let i = defensiveMissiles.length - 1; i >= 0; i--) {
+                        const m = defensiveMissiles[i];
+                        m.y += m.speed;
+                        if (m.y > canvas.height) { defensiveMissiles.splice(i, 1); continue; }
+
+                        // Check for collision with player
+                        if (m.x > player.x && m.x < player.x + player.width && m.y > player.y - player.height && m.y < player.y) {
+                            endGame(false); // Game over
+                            return;
                         }
                     }
-                    function handleTouchEnd(e) {
-                        e.preventDefault();
-                        player.dx = 0;
-                    }
-
-                    gameInstanceHandle.stop = () => {
-                        isPlaying = false;
-                        clearInterval(shootInterval);
-                        document.removeEventListener('keydown', handleKeydown);
-                        document.removeEventListener('keyup', handleKeyup);
-                        canvas.removeEventListener('touchstart', handleTouchStart);
-                        canvas.removeEventListener('touchend', handleTouchEnd);
-                        canvas.removeEventListener('touchcancel', handleTouchEnd);
-                        winMessage.removeEventListener('click', closeActiveWindow);
-                        exitBtn.removeEventListener('click', closeActiveWindow);
-
-                        document.body.classList.remove('destroy-game-active');
-                        canvas.style.display = 'none';
-                        winMessage.style.display = 'none';
-                        
-                        const nameContainer = document.getElementById('main-name');
-                        const subtitleContainer = document.getElementById('subtitle');
-                        
-                        nameContainer.innerHTML = '';
-                        subtitleContainer.innerHTML = '';
-
-                        const nameHTML = `<span data-text="BERK">B<span class="flicker-char">E</span>RK</span> <span data-text="GUNES">GUNE<span class="flicker-char">S</span></span>`;
-                        const subtitleHTML = `<span id="glitch-word-game" data-text="GAME">GAME</span><span> & </span><span id="glitch-word-realization" data-text="REALIZATION">REALIZATION</span><span> DESIGNER</span>`;
-                        
-                        let totalIndex = 0;
-                        function reveal(el, html) {
-                            const temp = document.createElement('div');
-                            temp.innerHTML = html;
-                            [...temp.childNodes].forEach(node => {
-                                const newNode = node.cloneNode(true);
-                                el.appendChild(newNode);
-                                if (newNode.nodeType === 1) { // Check if it's an element
-                                    newNode.style.opacity = '0';
-                                    setTimeout(() => {
-                                        newNode.style.transition = 'opacity 0.3s';
-                                        newNode.style.opacity = '1';
-                                    }, totalIndex * 50);
-                                }
-                                totalIndex++;
-                            });
+                    
+                    if (livingTargets.length === 0) {
+                        if (currentLevel === 3) {
+                            endGame(true);
+                        } else {
+                            startLevel(currentLevel + 1);
                         }
-                        
-                        reveal(nameContainer, nameHTML);
-                        reveal(subtitleContainer, subtitleHTML);
-
-                        setTimeout(() => {
-                             mainNameSpans = mainName.querySelectorAll('span[data-text]');
-                             gameWordEl = document.getElementById('glitch-word-game');
-                             realizationWordEl = document.getElementById('glitch-word-realization');
-                             flickerChars = document.querySelectorAll('.flicker-char');
-                        }, totalIndex * 50 + 100);
-                    };
-
-                    activeWindow = { id: 'destroy-window', gameInstance: gameInstanceHandle, remove: () => {} };
-
-                    document.addEventListener('keydown', handleKeydown);
-                    document.addEventListener('keyup', handleKeyup);
-                    canvas.addEventListener('touchstart', handleTouchStart, {passive: false});
-                    canvas.addEventListener('touchend', handleTouchEnd, {passive: false});
-                    canvas.addEventListener('touchcancel', handleTouchEnd, {passive: false});
-                    winMessage.addEventListener('click', closeActiveWindow);
-                    exitBtn.addEventListener('click', closeActiveWindow);
-
-                    const shootInterval = setInterval(shoot, 200);
-                    gameLoop();
+                    }
                 }
-                startGameLogic();
+
+                function draw() {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = 'red';
+                    ctx.beginPath();
+                    ctx.moveTo(player.x, player.y);
+                    ctx.lineTo(player.x + player.width, player.y);
+                    ctx.lineTo(player.x + player.width / 2, player.y - player.height);
+                    ctx.closePath();
+                    ctx.fill();
+
+                    ctx.fillStyle = '#fff';
+                    bullets.forEach(b => {
+                        ctx.fillRect(b.x - 1, b.y, 2, 5);
+                    });
+
+                    // Draw defensive missiles
+                    ctx.fillStyle = 'yellow';
+                    defensiveMissiles.forEach(m => {
+                        ctx.beginPath();
+                        ctx.arc(m.x, m.y, m.size, 0, Math.PI * 2);
+                        ctx.fill();
+                    });
+                }
+                
+                function endGame(didWin) {
+                    isPlaying = false;
+                    clearInterval(gameLoopInterval);
+                    clearInterval(shootInterval);
+                    clearInterval(defensiveMissileInterval);
+                    clearInterval(blinkingInterval);
+                    
+                    // Restore name elements
+                    document.body.classList.remove('destroy-game-active');
+                    canvas.style.display = 'none';
+                    winMessage.style.display = 'none';
+                    
+                    const nameContainer = document.getElementById('main-name');
+                    const subtitleContainer = document.getElementById('subtitle');
+                    
+                    nameContainer.innerHTML = '';
+                    subtitleContainer.innerHTML = '';
+
+                    const nameHTML = `<span data-text="BERK">B<span class="flicker-char">E</span>RK</span> <span data-text="GUNES">GUNE<span class="flicker-char">S</span></span>`;
+                    const subtitleHTML = `<span id="glitch-word-game" data-text="GAME">GAME</span><span> & </span><span id="glitch-word-realization" data-text="REALIZATION">REALIZATION</span><span> DESIGNER</span>`;
+                    
+                    let totalIndex = 0;
+                    function reveal(el, html) {
+                        const temp = document.createElement('div');
+                        temp.innerHTML = html;
+                        [...temp.childNodes].forEach(node => {
+                            const newNode = node.cloneNode(true);
+                            el.appendChild(newNode);
+                            if (newNode.nodeType === 1) { // Check if it's an element
+                                newNode.style.opacity = '0';
+                                setTimeout(() => {
+                                    newNode.style.transition = 'opacity 0.3s';
+                                    newNode.style.opacity = '1';
+                                }, totalIndex * 50);
+                            }
+                            totalIndex++;
+                        });
+                    }
+                    
+                    reveal(nameContainer, nameHTML);
+                    reveal(subtitleContainer, subtitleHTML);
+
+                    setTimeout(() => {
+                         mainNameSpans = mainName.querySelectorAll('span[data-text]');
+                         gameWordEl = document.getElementById('glitch-word-game');
+                         realizationWordEl = document.getElementById('glitch-word-realization');
+                         flickerChars = document.querySelectorAll('.flicker-char');
+                    }, totalIndex * 50 + 100);
+
+                    // Display win or lose message
+                    if (didWin) {
+                        winToast.style.display = 'block';
+                        setTimeout(() => {
+                            winToast.style.display = 'none';
+                        }, 3000);
+                        exitBtn.style.display = 'none';
+                    } else {
+                        winMessage.style.display = 'block';
+                        winMessage.textContent = '> GAME OVER. RESTART? <';
+                        winMessage.style.color = 'red';
+                        winMessage.addEventListener('click', () => { initDestroyGame(); }, { once: true });
+                    }
+                }
+
+                function shoot() {
+                    if (isPlaying) {
+                        bullets.push({ x: player.x + player.width / 2, y: player.y - player.height, speed: 7 });
+                    }
+                }
+
+                // Keyboard controls
+                function handleKeydown(e) {
+                    const key = e.key.toLowerCase();
+                    if (key === 'arrowleft' || key === 'a') player.dx = -player.speed;
+                    else if (key === 'arrowright' || key === 'd') player.dx = player.speed;
+                }
+                function handleKeyup(e) {
+                    const key = e.key.toLowerCase();
+                    if ((key === 'arrowleft' || key === 'a') || (key === 'arrowright' || key === 'd')) player.dx = 0;
+                }
+                
+                // Touch controls for mobile
+                function handleTouchStart(e) {
+                    e.preventDefault(); 
+                    const touchX = e.touches[0].clientX;
+                    if (touchX < window.innerWidth / 2) { 
+                        player.dx = -player.speed; 
+                    } else { 
+                        player.dx = player.speed;
+                    }
+                }
+                function handleTouchEnd(e) {
+                    e.preventDefault();
+                    player.dx = 0;
+                }
+
+                gameInstanceHandle.stop = () => {
+                    endGame(false);
+                    document.removeEventListener('keydown', handleKeydown);
+                    document.removeEventListener('keyup', handleKeyup);
+                    canvas.removeEventListener('touchstart', handleTouchStart);
+                    canvas.removeEventListener('touchend', handleTouchEnd);
+                    canvas.removeEventListener('touchcancel', handleTouchEnd);
+                    exitBtn.removeEventListener('click', closeActiveWindow);
+                };
+
+                activeWindow = { id: 'destroy-window', gameInstance: gameInstanceHandle, remove: () => {} };
+
+                document.addEventListener('keydown', handleKeydown);
+                document.addEventListener('keyup', handleKeyup);
+                canvas.addEventListener('touchstart', handleTouchStart, {passive: false});
+                canvas.addEventListener('touchend', handleTouchEnd, {passive: false});
+                canvas.addEventListener('touchcancel', handleTouchEnd, {passive: false});
+                exitBtn.addEventListener('click', closeActiveWindow);
+
+                const shootInterval = setInterval(shoot, 200);
+                startLevel(1);
             }
             
             function createClippyWindow() {
@@ -1384,11 +1497,9 @@
                 windowEl.querySelector('.close-btn').addEventListener('click', closeActiveWindow);
                 windowEl.style.display = 'flex';
                 
-                let isAILoading = false;
-                
                 async function sendMessage() {
                     const userMessage = chatInput.value.trim();
-                    if (!userMessage || isAILoading) return;
+                    if (!userMessage) return;
                     
                     // Display user message
                     const userMessageEl = document.createElement('p');
@@ -1398,69 +1509,32 @@
                     chatInput.value = '';
                     chatMessages.scrollTop = chatMessages.scrollHeight;
 
-                    // Display AI loading message
-                    isAILoading = true;
-                    const aiLoadingEl = document.createElement('p');
-                    aiLoadingEl.className = 'chat-message ai loading-dots';
-                    aiLoadingEl.textContent = '> Processing';
-                    chatMessages.appendChild(aiLoadingEl);
+                    // Get a static response based on user input
+                    const responseText = getStaticResponse(userMessage);
+
+                    // Display AI response
+                    const aiMessageEl = document.createElement('p');
+                    aiMessageEl.className = 'chat-message ai';
+                    aiMessageEl.textContent = responseText;
+                    chatMessages.appendChild(aiMessageEl);
+                    
                     chatMessages.scrollTop = chatMessages.scrollHeight;
+                }
 
-                    const aboutText = document.querySelector('#clippy-data [data-field="about"]').textContent;
-                    const projectsText = document.querySelector('#clippy-data [data-field="projects"]').textContent;
-                    const skillsText = document.querySelector('#clippy-data [data-field="skills"]').textContent;
-                    const gamesText = document.querySelector('#clippy-data [data-field="games"]').textContent;
+                function getStaticResponse(query) {
+                    const lowerQuery = query.toLowerCase();
 
-                    const systemPrompt = `You are Clippy.exe, a 90s-era command-line assistant for Berk Gunes's portfolio. Respond to user queries based ONLY on the following data: About: ${aboutText} Projects: ${projectsText} Skills: ${skillsText} Games: ${gamesText}. If a query is outside this scope, politely decline. Keep answers concise and in character.`;
-                    
-                    const userQuery = userMessage;
-                    const apiKey = ""
-                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
-                    
-                    const payload = {
-                      contents: [{ parts: [{ text: userQuery }] }],
-                      systemInstruction: {
-                        parts: [{ text: systemPrompt }]
-                      },
-                    };
-                    
-                    try {
-                        const response = await fetch(apiUrl, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(payload)
-                        });
-
-                        const result = await response.json();
-                        let aiText;
-                        if (result.candidates && result.candidates.length > 0 && result.candidates[0].content && result.candidates[0].content.parts && result.candidates[0].content.parts[0].text) {
-                            aiText = result.candidates[0].content.parts[0].text;
-                        } else {
-                            // Check for safety or other reasons for no candidates
-                            if (result.promptFeedback && result.promptFeedback.blockReason) {
-                                aiText = `> ACCESS DENIED. REASON: ${result.promptFeedback.blockReason.toUpperCase()}.`;
-                            } else {
-                                aiText = '> ERROR: NO VALID RESPONSE RECEIVED. PLEASE RE-CHECK YOUR QUERY.';
-                            }
-                        }
-
-                        // Remove loading dots and display AI response
-                        chatMessages.removeChild(aiLoadingEl);
-                        const aiMessageEl = document.createElement('p');
-                        aiMessageEl.className = 'chat-message ai';
-                        aiMessageEl.textContent = aiText;
-                        chatMessages.appendChild(aiMessageEl);
-                    } catch (error) {
-                        console.error('API Error:', error);
-                        chatMessages.removeChild(aiLoadingEl);
-                        const aiErrorEl = document.createElement('p');
-                        aiErrorEl.className = 'chat-message ai';
-                        aiErrorEl.textContent = '> ERROR: CONNECTION FAILED. UNABLE TO REACH SERVER.';
-                        chatMessages.appendChild(aiErrorEl);
+                    if (lowerQuery.includes('about')) {
+                        return `> QUERY COMPLETE. C:\\ABOUT.TXT:\n> ${document.querySelector('#clippy-data [data-field="about"]').textContent}`;
+                    } else if (lowerQuery.includes('projects')) {
+                        return `> QUERY COMPLETE. C:\\PROJECTS.DIR:\n> ${document.querySelector('#clippy-data [data-field="projects"]').textContent}`;
+                    } else if (lowerQuery.includes('skills')) {
+                        return `> QUERY COMPLETE. C:\\SKILLS.LOG:\n> ${document.querySelector('#clippy-data [data-field="skills"]').textContent}`;
+                    } else if (lowerQuery.includes('games')) {
+                        return `> QUERY COMPLETE. C:\\GAMES.TXT:\n> ${document.querySelector('#clippy-data [data-field="games"]').textContent}`;
+                    } else {
+                        return '> ERROR: TOPIC NOT FOUND. I CAN PROVIDE INFORMATION ON ABOUT, PROJECTS, SKILLS, AND GAMES.';
                     }
-                    
-                    isAILoading = false;
-                    chatMessages.scrollTop = chatMessages.scrollHeight;
                 }
 
                 chatSendBtn.addEventListener('click', sendMessage);
