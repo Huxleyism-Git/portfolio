@@ -83,6 +83,10 @@
             font-weight: 500;
             color: #fff;
         }
+        #main-name.lights-off {
+            text-shadow: none;
+            color: #333;
+        }
         #main-name span {
              position: relative;
         }
@@ -419,7 +423,7 @@
              </div>
              <div class="desktop-icon" data-window="contact">
                 <div class="icon-art">🌐</div>
-                <span class="icon-label">CONNECT.EXE</span>
+                <span class="icon-label">CONTACT.EXE</span>
              </div>
              <div class="desktop-icon" data-window="clippy">
                 <div class="icon-art">📎</div>
@@ -601,10 +605,20 @@
                 }
             });
 
+            // Lights-off effect on name click
+            mainName.addEventListener('click', () => {
+                mainName.classList.add('lights-off');
+                setTimeout(() => {
+                    mainName.classList.remove('lights-off');
+                }, 1000);
+            });
+
             let scene, camera, renderer, particles, hoverParticles = [];
             let comets = [];
             let gravityCenter = new THREE.Vector3();
             let particlesExploding = false;
+            let maxHoverParticles = 200;
+            let hoverParticlesTimeout;
 
             function initBg() {
                 scene = new THREE.Scene();
@@ -619,19 +633,6 @@
                 pGeometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
                 particles = new THREE.Points(pGeometry, pMaterial);
                 scene.add(particles);
-                const hoverMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.025, blending: THREE.AdditiveBlending, transparent: true });
-                for (let i = 0; i < 50; i++) {
-                    const geometry = new THREE.BufferGeometry();
-                    geometry.setAttribute('position', new THREE.Float32BufferAttribute([0,0,0], 3));
-                    const point = new THREE.Points(geometry, hoverMaterial);
-                    point.orbitAngle = Math.random() * Math.PI * 2;
-                    point.orbitRadius = new THREE.Vector2(1.5 + Math.random() * 1.5, 0.5 + Math.random() * 0.5);
-                    point.orbitSpeed = 0.002 + Math.random() * 0.005;
-                    point.originalPosition = new THREE.Vector3();
-                    point.velocity = new THREE.Vector3();
-                    hoverParticles.push(point);
-                    scene.add(point);
-                }
                 renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('bg-canvas'), alpha: true });
                 renderer.setSize(window.innerWidth, window.innerHeight);
                 window.addEventListener('resize', () => {
@@ -640,13 +641,54 @@
                     renderer.setSize(window.innerWidth, window.innerHeight);
                 });
             }
+
+            function addHoverParticle(x, y) {
+                if (hoverParticles.length >= maxHoverParticles) {
+                     // Remove the oldest particle
+                    const oldestParticle = hoverParticles.shift();
+                    scene.remove(oldestParticle);
+                    oldestParticle.geometry.dispose();
+                    oldestParticle.material.dispose();
+                }
+
+                const hoverMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.025, blending: THREE.AdditiveBlending, transparent: true });
+                const geometry = new THREE.BufferGeometry();
+                const position = new THREE.Vector3();
+                position.set( (x / window.innerWidth) * 2 - 1, - (y / window.innerHeight) * 2 + 1, 0.5 );
+                position.unproject(camera);
+                geometry.setAttribute('position', new THREE.Float32BufferAttribute([position.x, position.y, position.z], 3));
+                
+                const point = new THREE.Points(geometry, hoverMaterial);
+                point.orbitAngle = Math.random() * Math.PI * 2;
+                point.orbitRadius = new THREE.Vector2(1.5 + Math.random() * 1.5, 0.5 + Math.random() * 0.5);
+                point.orbitSpeed = 0.002 + Math.random() * 0.005;
+                point.originalPosition = new THREE.Vector3();
+                point.velocity = new THREE.Vector3();
+                hoverParticles.push(point);
+                scene.add(point);
+
+                 // Schedule a fade-out for the particle after a delay
+                clearTimeout(hoverParticlesTimeout);
+                hoverParticlesTimeout = setTimeout(() => {
+                    if (hoverParticles.length > 50) {
+                        const oldestParticle = hoverParticles.shift();
+                        scene.remove(oldestParticle);
+                        oldestParticle.geometry.dispose();
+                        oldestParticle.material.dispose();
+                    }
+                }, 1000);
+            }
+
             let mouseX = 0, mouseY = 0;
             let mouseVector = new THREE.Vector3();
             if (isTouchDevice) {
                 window.addEventListener('deviceorientation', (e) => {
-                    mouseX = (e.gamma || 0) * 20; // Left-to-right tilt
-                    mouseY = (e.beta || 0 - 45) * 20; // Front-to-back tilt, offset to center
+                    mouseX = (e.gamma || 0) * 20;
+                    mouseY = (e.beta || 0 - 45) * 20;
                 });
+                document.addEventListener('touchstart', (e) => {
+                    addHoverParticle(e.touches[0].clientX, e.touches[0].clientY);
+                }, false);
             } else {
                 document.addEventListener('mousemove', e => {
                     mouseX = (e.clientX - window.innerWidth / 2);
@@ -657,6 +699,9 @@
                     let distance = -camera.position.z / dir.z;
                     let pos = camera.position.clone().add(dir.multiplyScalar(distance));
                     mouseVector.copy(pos);
+                });
+                document.addEventListener('click', (e) => {
+                    addHoverParticle(e.clientX, e.clientY);
                 });
             }
             function triggerParticleExplosion() {
@@ -823,7 +868,7 @@
                 }
 
                 // If a window is already active, don't do anything else
-                if (activeWindow) return;
+                if (activeWindow || cmdState !== 'idle') return;
 
                 // Any single character key press will now open Clippy
                 if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
@@ -1150,6 +1195,26 @@
                 let gameLoopInterval, defensiveMissileInterval, blinkingInterval;
                 let gameInstanceHandle = { stop: () => {} };
 
+                function toggleTargetVisibility() {
+                    targets.forEach(t => {
+                        if (t.alive) {
+                            const isVisible = Math.random() > 0.5;
+                            t.el.style.opacity = isVisible ? '1' : '0.1';
+                        }
+                    });
+                }
+                
+                function launchDefensiveMissile() {
+                    const startX = Math.random() * canvas.width;
+                    defensiveMissiles.push({
+                        x: startX,
+                        y: 0,
+                        speed: 2 + Math.random() * 2, // Varied speed
+                        size: 5,
+                        dy: 1
+                    });
+                }
+
                 function setupTargets(level) {
                     targets = [];
                     nameEl.innerHTML = '';
@@ -1194,8 +1259,6 @@
                     bullets = [];
                     defensiveMissiles = [];
 
-                    await setupTargets(currentLevel);
-
                     winMessage.style.display = 'block';
                     if (currentLevel === 2) {
                         winMessage.textContent = '> LVL 2 <';
@@ -1204,6 +1267,8 @@
                     } else {
                         winMessage.textContent = '> LVL 1 <';
                     }
+
+                    await setupTargets(currentLevel);
 
                     setTimeout(() => {
                         winMessage.style.display = 'none';
@@ -1223,26 +1288,6 @@
                     }, 2000);
                 }
                 
-                function toggleTargetVisibility() {
-                    targets.forEach(t => {
-                        if (t.alive) {
-                            const isVisible = Math.random() > 0.5;
-                            t.el.style.opacity = isVisible ? '1' : '0.1';
-                        }
-                    });
-                }
-                
-                function launchDefensiveMissile() {
-                    const startX = Math.random() * canvas.width;
-                    defensiveMissiles.push({
-                        x: startX,
-                        y: 0,
-                        speed: 2 + Math.random() * 2, // Varied speed
-                        size: 5,
-                        dy: 1
-                    });
-                }
-
                 function gameLoop() {
                     if (!isPlaying) return;
                     update();
@@ -1396,9 +1441,11 @@
                         exitBtn.style.display = 'none';
                     } else {
                         winMessage.style.display = 'block';
-                        winMessage.textContent = '> GAME OVER. RESTART? <';
+                        winMessage.textContent = '> GAME OVER <';
                         winMessage.style.color = 'red';
-                        winMessage.addEventListener('click', () => { initDestroyGame(); }, { once: true });
+                        setTimeout(() => {
+                            winMessage.style.display = 'none';
+                        }, 3000);
                     }
                 }
 
